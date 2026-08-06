@@ -1,35 +1,59 @@
-# Production Dockerfile for SI-APARAT API Backend
-# node:22-slim = Debian glibc (required for Prisma & Sharp) + Node 22 (required for pnpm 11)
-FROM node:22-slim AS builder
+# SI-APARAT API – Render Docker Build
+# Uses node:22-bookworm-slim (Debian 12, glibc) – compatible with pnpm 11, Prisma 5, Sharp
+FROM node:22-bookworm-slim AS base
+
+# Prisma needs openssl, Sharp needs libvips deps
+RUN apt-get update -y \
+    && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pnpm globally
+RUN npm install -g pnpm@11.20.0
 
 WORKDIR /app
 
-# openssl required by Prisma
-RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# ── Dependency install ─────────────────────────────────────────────────────────
+FROM base AS deps
 
-# Install pnpm matching workspace version
-RUN npm install -g pnpm@11.20.0
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 
-# Copy workspace source files (node_modules excluded via .dockerignore)
-COPY . .
+# Copy only package.json files first (layer cache optimisation)
+COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
+COPY packages/shared/package.json ./packages/shared/
 
-# Install all workspace dependencies
 RUN pnpm install --frozen-lockfile
 
-# Generate Prisma Client & compile TypeScript
+# ── Build ──────────────────────────────────────────────────────────────────────
+FROM base AS builder
+
+WORKDIR /app
+
+# Bring installed node_modules from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
+COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules 2>/dev/null || true
+
+# Copy full source
+COPY . .
+
+# Generate Prisma client then compile TypeScript
 RUN pnpm --filter api db:generate
 RUN pnpm --filter api build
 
-# ── Runtime stage ──────────────────────────────────────────────────────────────
-FROM node:22-slim AS runner
+# ── Runtime ────────────────────────────────────────────────────────────────────
+FROM node:22-bookworm-slim AS runner
+
+RUN apt-get update -y \
+    && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
-RUN npm install -g pnpm@11.20.0
-
+# Copy everything built
 COPY --from=builder /app ./
 
 EXPOSE 3000
