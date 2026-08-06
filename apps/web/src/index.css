@@ -1,0 +1,332 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800;900&family=Plus+Jakarta+Sans:wght@600;700;800;900&family=JetBrains+Mono:wght@600;800&display=swap');
+
+:root, [data-theme="light"] {
+  --neo-bg: #faf8f5;
+  --neo-bg-dots: #cbd5e1;
+  --neo-card-bg: #ffffff;
+  --neo-card-text: #0d0e12;
+  --neo-card-shadow: #000000;
+  
+  --neo-yellow: #ffe600;
+  --neo-mint: #00f0ff;
+  --neo-pink: #ff3b5c;
+  --neo-purple: #a855f7;
+  --neo-orange: #ff9900;
+  --neo-green: #10b981;
+  
+  --neo-border: #000000;
+  
+  --neo-text: #0d0e12;
+  --neo-text-muted: #4b5563;
+  --neo-nav-bg: #ffffff;
+  --neo-footer-bg: #ffffff;
+  
+  --font-display: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+[data-theme="dark"] {
+  --neo-bg: #0d0e12;
+  --neo-bg-dots: #2a2d3d;
+  --neo-card-bg: #16171f;
+  --neo-card-text: #ffffff;
+  --neo-card-shadow: #000000;
+  
+  --neo-yellow: #ffe600;
+  --neo-mint: #00f0ff;
+  --neo-pink: #ff3b5c;
+  --neo-purple: #a855f7;
+  --neo-orange: #ff9900;
+  --neo-green: #10b981;
+  
+  --neo-border: #000000;
+  
+  --neo-text: #ffffff;
+  --neo-text-muted: #9ca3af;
+  --neo-nav-bg: #16171f;
+  --neo-footer-bg: #16171f;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--neo-bg);
+  color: var(--neo-text);
+  min-height: 100vh;
+  line-height: 1.6;
+  background-image: radial-gradient(var(--neo-bg-dots) 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Neo-Brutalism Cards (Theme-Aware) */
+.neo-card {
+  background: var(--neo-card-bg);
+  color: var(--neo-card-text);
+  border: 3px solid var(--neo-border);
+  box-shadow: 5px 5px 0px 0px var(--neo-card-shadow);
+  border-radius: 12px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.neo-card-white {
+  background: var(--neo-card-bg);
+  color: var(--neo-card-text);
+  border: 3px solid var(--neo-border);
+  box-shadow: 5px 5px 0px 0px var(--neo-card-shadow);
+  border-radius: 12px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.neo-card-yellow {
+  background: var(--neo-yellow);
+  color: #000000;
+  border: 3px solid #000000;
+  box-shadow: 5px 5px 0px 0px #000000;
+  border-radius: 12px;
+}
+
+.neo-card-pink {
+  background: var(--neo-pink);
+  color: #ffffff;
+  border: 3px solid #000000;
+  box-shadow: 5px 5px 0px 0px #000000;
+  border-radius: 12px;
+}
+
+.neo-card-mint {
+  background: var(--neo-mint);
+  color: #000000;
+  border: 3px solid #000000;
+  box-shadow: 5px 5px 0px 0px #000000;
+  border-radius: 12px;
+}
+
+.neo-card-hover:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: 8px 8px 0px 0px var(--neo-card-shadow);
+}
+
+.neo-card-hover-mint:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: 8px 8px 0px 0px var(--neo-mint);
+}
+
+.neo-card-hover-pink:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: 8px 8px 0px 0px var(--neo-pink);
+}
+
+/* Neo-Brutalism Buttons */
+.neo-btn-primary {
+  background: var(--neo-yellow);
+  color: #000000;
+  font-family: var(--font-display);
+  font-weight: 800;
+  padding: 12px 24px;
+  border-radius: 10px;
+  border: 3px solid #000000;
+  box-shadow: 4px 4px 0px 0px #000000;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.neo-btn-primary:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px #000000;
+  background: #fff066;
+}
+
+.neo-btn-primary:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px 0px #000000;
+}
+
+.neo-btn-secondary {
+  background: var(--neo-card-bg);
+  color: var(--neo-card-text);
+  font-family: var(--font-display);
+  font-weight: 700;
+  padding: 12px 24px;
+  border-radius: 10px;
+  border: 3px solid #000000;
+  box-shadow: 4px 4px 0px 0px #000000;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.neo-btn-secondary:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px #000000;
+}
+
+.neo-btn-secondary:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px 0px #000000;
+}
+
+.neo-btn-danger {
+  background: var(--neo-pink);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-weight: 800;
+  padding: 12px 24px;
+  border-radius: 10px;
+  border: 3px solid #000000;
+  box-shadow: 4px 4px 0px 0px #000000;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.neo-btn-danger:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px #000000;
+}
+
+.neo-btn-mint {
+  background: var(--neo-mint);
+  color: #000000;
+  font-family: var(--font-display);
+  font-weight: 800;
+  padding: 12px 24px;
+  border-radius: 10px;
+  border: 3px solid #000000;
+  box-shadow: 4px 4px 0px 0px #000000;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.neo-btn-mint:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px #000000;
+}
+
+/* Neo Inputs (Theme-Aware) */
+.neo-input {
+  background: var(--neo-card-bg);
+  color: var(--neo-card-text);
+  border: 3px solid #000000;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  width: 100%;
+  box-shadow: 3px 3px 0px 0px #000000;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.neo-input:focus {
+  border-color: #000000;
+  box-shadow: 4px 4px 0px 0px var(--neo-yellow);
+}
+
+/* Neo Badges */
+.neo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 2px solid #000000;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.8rem;
+  box-shadow: 2px 2px 0px 0px #000000;
+}
+
+.neo-badge-yellow { background: var(--neo-yellow); color: #000000; }
+.neo-badge-mint { background: var(--neo-mint); color: #000000; }
+.neo-badge-pink { background: var(--neo-pink); color: #ffffff; }
+.neo-badge-purple { background: var(--neo-purple); color: #ffffff; }
+.neo-badge-orange { background: var(--neo-orange); color: #000000; }
+.neo-badge-green { background: var(--neo-green); color: #ffffff; }
+.neo-badge-white { background: #ffffff; color: #000000; }
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Responsive Display Utilities */
+.desktop-only {
+  display: flex !important;
+}
+
+.mobile-only {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+  
+  .mobile-only {
+    display: flex !important;
+  }
+  
+  .neo-card {
+    padding: 1.5rem !important;
+    box-shadow: 4px 4px 0px 0px var(--neo-card-shadow) !important;
+  }
+  
+  .neo-btn-primary, .neo-btn-secondary, .neo-btn-mint, .neo-btn-danger {
+    padding: 10px 18px !important;
+    font-size: 0.9rem !important;
+  }
+}
+
+/* Animations */
+@keyframes neoPop {
+  0% { transform: scale(0.96) translateY(6px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.animate-neo-pop {
+  animation: neoPop 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--neo-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--neo-yellow);
+  border: 2px solid #000000;
+  border-radius: 6px;
+}

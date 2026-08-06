@@ -1,0 +1,127 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ─────────────────────────────────────────────────────────────────
+
+enum RoleUser {
+  SUPER_ADMIN
+  MPK
+  PEMBINA
+}
+
+enum KategoriLaporan {
+  SARANA
+  KEGIATAN
+  PERUNDUNGAN
+  LAINNYA
+}
+
+enum StatusLaporan {
+  BARU
+  DIPROSES
+  DITERUSKAN
+  SELESAI
+}
+
+// ─── Models ────────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid())
+  username     String    @unique
+  passwordHash String
+  role         RoleUser
+  namaLengkap  String
+  /// Email wajib untuk MPK & SUPER_ADMIN (penerima notifikasi laporan baru)
+  email        String?   @unique
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  balasanMPK   BalasanMPK[]
+  catatanPembina CatatanPembina[]
+
+  @@map("users")
+}
+
+model Laporan {
+  id           String          @id @default(uuid())
+  kodeTracking String          @unique
+  kategori     KategoriLaporan
+  /// Konten terenkripsi AES-256-GCM (base64). TIDAK PERNAH disimpan plaintext.
+  konten       String
+  status       StatusLaporan   @default(BARU)
+  isEskalasi   Boolean         @default(false)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  // Relations
+  lampiran     LampiranFoto[]
+  balasan      BalasanMPK?
+  catatan      CatatanPembina[]
+
+  // Indexes untuk performa query dashboard
+  @@index([status])
+  @@index([kategori])
+  @@index([isEskalasi])
+  @@index([createdAt(sort: Desc)])
+  @@map("laporan")
+}
+
+model LampiranFoto {
+  id          String   @id @default(uuid())
+  laporanId   String
+  /// Object key di Cloudflare R2 bucket (private). BUKAN URL publik.
+  r2Key       String   @unique
+  /// Selalu true — foto dienkripsi AES-256-GCM sebelum upload ke R2.
+  isEncrypted Boolean  @default(true)
+  /// MIME type original setelah validasi magic bytes
+  mimeType    String
+  /// Ukuran file asli dalam bytes (sebelum enkripsi)
+  fileSizeBytes Int
+  createdAt   DateTime @default(now())
+
+  // Relations
+  laporan     Laporan  @relation(fields: [laporanId], references: [id], onDelete: Cascade)
+
+  @@index([laporanId])
+  @@map("lampiran_foto")
+}
+
+model BalasanMPK {
+  id        String   @id @default(uuid())
+  laporanId String   @unique
+  authorId  String
+  /// Pesan balasan (plaintext — ini adalah komunikasi resmi MPK, bukan laporan sensitif)
+  pesan     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  laporan   Laporan  @relation(fields: [laporanId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id])
+
+  @@map("balasan_mpk")
+}
+
+model CatatanPembina {
+  id        String   @id @default(uuid())
+  laporanId String
+  authorId  String
+  catatan   String
+  createdAt DateTime @default(now())
+
+  // Relations
+  laporan   Laporan  @relation(fields: [laporanId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id])
+
+  @@map("catatan_pembina")
+}
