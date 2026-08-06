@@ -66,18 +66,35 @@ export async function getTrackingStatus(kodeTracking: string): Promise<TrackingR
 
 /** Login Petugas MPK / Pembina / Admin */
 export async function loginUser(username: string, password: string): Promise<LoginResponse> {
-  const res = await fetch(`${API_BASE}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-  const data = await res.json();
-  if (!res.ok) {
-    throw new ApiError(data.message || 'Login gagal', res.status);
+  try {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new ApiError(data.message || 'Login gagal', res.status);
+    }
+
+    return data;
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new ApiError('Koneksi ke server API timeout (10s). Pastikan Backend API di Render/Railway sudah aktif.', 504);
+    }
+    if (err instanceof ApiError) throw err;
+    throw new ApiError(
+      'Gagal terhubung ke Backend API. Pastikan VITE_API_URL diset di Vercel & Backend API sudah aktif.',
+      500
+    );
   }
-
-  return data;
 }
 
 // ─── MPK Endpoints ─────────────────────────────────────────────────────────

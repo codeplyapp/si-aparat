@@ -31,12 +31,8 @@ export const Login: React.FC = () => {
       if (res.role === 'SUPER_ADMIN') navigate('/dashboard/admin');
       else if (res.role === 'PEMBINA') navigate('/dashboard/pembina');
       else navigate('/dashboard/mpk');
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setErrorMsg(err.message);
-      } else {
-        setErrorMsg('Gagal terhubung ke server.');
-      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Gagal terhubung ke server.');
     } finally {
       setLoading(false);
     }
