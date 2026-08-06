@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginUser, ApiError } from '../lib/api';
+import { loginUser } from '../lib/api';
 import { User, Key, AlertTriangle, ShieldCheck } from 'lucide-react';
 import mpkLogo from '../assets/logo-mpk.png';
 
