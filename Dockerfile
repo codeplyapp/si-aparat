@@ -1,26 +1,22 @@
 # Production Dockerfile for SI-APARAT API Backend
-FROM node:22-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Install pnpm 11 matching workspace version
+# Install pnpm matching workspace version
 RUN npm install -g pnpm@11.20.0
 
-# Copy workspace manifests
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+# Copy workspace source files (node_modules excluded via .dockerignore)
+COPY . .
 
-# Copy packages and apps
-COPY packages ./packages
-COPY apps/api ./apps/api
-
-# Install dependencies
+# Install dependencies for monorepo
 RUN pnpm install --frozen-lockfile
 
-# Generate Prisma Client & Compile TypeScript
+# Generate Prisma Client & Compile API
 RUN pnpm --filter api db:generate
 RUN pnpm --filter api build
 
-FROM node:22-alpine AS runner
+FROM node:20-slim AS runner
 
 WORKDIR /app
 ENV NODE_ENV=production
