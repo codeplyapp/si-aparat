@@ -1,10 +1,10 @@
 # Production Dockerfile for SI-APARAT API Backend
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Enable pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+# Install pnpm 11 matching workspace version
+RUN npm install -g pnpm@11.20.0
 
 # Copy workspace manifests
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
@@ -20,13 +20,13 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm --filter api db:generate
 RUN pnpm --filter api build
 
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install -g pnpm@11.20.0
 
 COPY --from=builder /app ./
 
