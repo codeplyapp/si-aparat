@@ -7,7 +7,7 @@ import type {
   RoleUser,
 } from '@si-aparat/shared';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://si-aparat.onrender.com/api/v1';
 
 export class ApiError extends Error {
   statusCode: number;
