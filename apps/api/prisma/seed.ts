@@ -14,7 +14,7 @@ const prisma = new PrismaClient();
 
 const DEFAULT_ADMIN_USERNAME = 'admin';
 const DEFAULT_ADMIN_PASSWORD = 'Admin@Aparat2026!'; // Ganti setelah login pertama
-const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@example.com';
+const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'mpksmadatara@gmail.com';
 
 async function main() {
   console.log('🌱 Starting database seed...');

@@ -101,7 +101,7 @@ export async function sendNewReportNotification(
   `;
 
   // Kirim ke setiap recipient
-  const adminEmail = process.env.ADMIN_EMAIL ?? 'codeplyapp@gmail.com';
+  const adminEmail = process.env.ADMIN_EMAIL ?? 'mpksmadatara@gmail.com';
 
   for (const recipient of recipientEmails) {
     try {
