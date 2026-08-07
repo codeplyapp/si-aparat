@@ -5,7 +5,7 @@ services:
     region: singapore
     plan: free
     rootDir: .
-    buildCommand: npm install -g pnpm@11.20.0 && pnpm install --frozen-lockfile && pnpm --filter api db:generate && pnpm --filter api build
+    buildCommand: npm install -g pnpm@11.20.0 && pnpm install --frozen-lockfile && pnpm --filter api db:generate && npx prisma db push --schema=apps/api/prisma/schema.prisma --accept-data-loss && pnpm --filter api db:seed && pnpm --filter api build
     startCommand: node apps/api/dist/server.js
     envVars:
       - key: NODE_VERSION
