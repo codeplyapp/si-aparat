@@ -67,7 +67,8 @@ export async function getTrackingStatus(kodeTracking: string): Promise<TrackingR
 /** Login Petugas MPK / Pembina / Admin */
 export async function loginUser(username: string, password: string): Promise<LoginResponse> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  // 45s timeout untuk mentoleransi cold-start Render Free Tier (spin-up 15-30s)
+  const timeoutId = setTimeout(() => controller.abort(), 45000);
 
   try {
     const res = await fetch(`${API_BASE}/auth/login`, {
@@ -87,11 +88,11 @@ export async function loginUser(username: string, password: string): Promise<Log
   } catch (err: any) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
-      throw new ApiError('Koneksi ke server API timeout (10s). Pastikan Backend API di Render/Railway sudah aktif.', 504);
+      throw new ApiError('Server API sedang melakukan booting (Render Cold Start). Silakan tunggu sebentar dan coba klik Login kembali.', 504);
     }
     if (err instanceof ApiError) throw err;
     throw new ApiError(
-      'Gagal terhubung ke Backend API. Pastikan VITE_API_URL diset di Vercel & Backend API sudah aktif.',
+      'Gagal terhubung ke Backend API. Pastikan VITE_API_URL diset di Vercel & Backend API di Render sudah aktif.',
       500
     );
   }
