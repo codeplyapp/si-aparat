@@ -101,6 +101,8 @@ export async function sendNewReportNotification(
   `;
 
   // Kirim ke setiap recipient
+  const adminEmail = process.env.ADMIN_EMAIL ?? 'codeplyapp@gmail.com';
+
   for (const recipient of recipientEmails) {
     try {
       const response = await resend.emails.send({
@@ -112,6 +114,26 @@ export async function sendNewReportNotification(
 
       if (response.error) {
         console.warn(`⚠️ [Resend] Failed to send email to ${recipient}:`, response.error.message);
+
+        // Jika kena batasan mode testing Resend (onboarding@resend.dev), alihkan notifikasi ke ADMIN_EMAIL
+        if (
+          response.error.message?.includes('testing emails to your own email address') &&
+          recipient !== adminEmail
+        ) {
+          console.log(`ℹ️ [Resend Testing Mode] Forwarding email for ${recipient} to Admin (${adminEmail})...`);
+          await resend.emails.send({
+            from: getFromEmail(),
+            to: adminEmail,
+            subject: `[FORWARDED TO ADMIN] ${subject}`,
+            html: `
+              <div style="background: #fffbebf9; border: 2px solid #f59e0b; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; color: #92400e;">
+                📌 <strong>Catatan Testing Resend API:</strong><br>
+                Email notifikasi ini ditujukan untuk MPK: <code>${recipient}</code>.<br>
+                Karena Resend menggunakan domain gratis <code>onboarding@resend.dev</code>, Resend membatasi penerima hanya ke email pemilik akun (<code>${adminEmail}</code>).
+              </div>
+            ` + htmlContent,
+          });
+        }
       } else {
         console.log(`✅ [Resend] Email sent to ${recipient} (id: ${response.data?.id})`);
       }
