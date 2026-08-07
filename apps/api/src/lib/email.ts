@@ -23,7 +23,7 @@ function getResendClient(): Resend {
 }
 
 function getFromEmail(): string {
-  return process.env.EMAIL_FROM ?? 'SI-APARAT <noreply@aparat.sch.id>';
+  return process.env.EMAIL_FROM ?? 'SI-APARAT <onboarding@resend.dev>';
 }
 
 const KATEGORI_LABELS: Record<KategoriLaporan, string> = {
