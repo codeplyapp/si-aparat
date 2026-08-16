@@ -61,6 +61,7 @@ model Laporan {
   konten       String
   status       StatusLaporan   @default(BARU)
   isEskalasi   Boolean         @default(false)
+  notifiedAt   DateTime?
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
 

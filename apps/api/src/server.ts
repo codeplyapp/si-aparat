@@ -14,6 +14,7 @@ import { authRoutes } from './modules/auth/auth.routes';
 import { mpkRoutes } from './modules/mpk/mpk.routes';
 import { pembinaRoutes } from './modules/pembina/pembina.routes';
 import { adminRoutes } from './modules/admin/admin.routes';
+import { internalRoutes } from './modules/internal/internal.routes';
 
 const server = Fastify({
   logger: {
@@ -99,6 +100,8 @@ async function bootstrap() {
   await server.register(mpkRoutes, { prefix: '/api/v1/mpk' });
   await server.register(pembinaRoutes, { prefix: '/api/v1/pembina' });
   await server.register(adminRoutes, { prefix: '/api/v1/admin' });
+  await server.register(internalRoutes, { prefix: '/api/internal' });
+  await server.register(internalRoutes, { prefix: '/api/v1/internal' });
 
   // ─── Global Error Handler ─────────────────────────────────────────
   server.setErrorHandler((error, _request, reply) => {
