@@ -212,4 +212,30 @@ export async function aspirasiRoutes(fastify: FastifyInstance) {
       });
     },
   );
+
+  // ─── GET /api/v1/aspirasi/stats ──────────────────────────────────
+  fastify.get('/stats', async (_request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const [totalLaporan, sedangDiproses, sudahDitangani] = await Promise.all([
+        prisma.laporan.count(),
+        prisma.laporan.count({
+          where: { status: { in: [StatusLaporan.DIPROSES, StatusLaporan.DITERUSKAN] } },
+        }),
+        prisma.laporan.count({
+          where: { status: StatusLaporan.SELESAI },
+        }),
+      ]);
+
+      return reply.send({
+        totalLaporan,
+        sedangDiproses,
+        sudahDitangani,
+      });
+    } catch (error: any) {
+      return reply.status(500).send({
+        error: 'Internal Server Error',
+        message: 'Gagal mengambil statistik laporan.',
+      });
+    }
+  });
 }

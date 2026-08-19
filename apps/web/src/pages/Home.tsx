@@ -1,9 +1,22 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldAlert, Send, Search, EyeOff, Lock, ArrowRight } from 'lucide-react';
+import { Send, Search, ArrowRight, FileText, Clock, CheckCircle2 } from 'lucide-react';
 import mpkLogo from '../assets/logo-mpk.png';
+import { getPublicStats, type PublicStatsResponse } from '../lib/api';
 
 export const Home: React.FC = () => {
+  const [stats, setStats] = useState<PublicStatsResponse>({
+    totalLaporan: 0,
+    sedangDiproses: 0,
+    sudahDitangani: 0,
+  });
+
+  useEffect(() => {
+    getPublicStats()
+      .then((data) => setStats(data))
+      .catch(() => {});
+  }, []);
+
   return (
     <div style={{ maxWidth: '1050px', margin: '0 auto', padding: '0 1rem' }} className="animate-neo-pop">
       {/* Hero Section */}
@@ -71,89 +84,107 @@ export const Home: React.FC = () => {
         </div>
       </section>
 
-      {/* Feature Cards Grid (Theme-Aware Cards) */}
+      {/* Live Statistics Cards Grid */}
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', margin: '1.5rem 0 3rem' }}>
-        {/* Card 1: Perundungan Alert */}
-        <div className="neo-card neo-card-hover-pink" style={{ padding: '1.75rem' }}>
-          <div
-            style={{
-              background: '#ff3b5c',
-              color: '#ffffff',
-              border: '3px solid #000000',
-              boxShadow: '3px 3px 0px 0px #000000',
-              width: '52px',
-              height: '52px',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: '1rem',
-            }}
-          >
-            <ShieldAlert size={28} strokeWidth={2.5} />
+        {/* Card 1: Total Laporan */}
+        <div className="neo-card neo-card-hover" style={{ padding: '1.75rem', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+            <div
+              style={{
+                background: '#ffe600',
+                color: '#000000',
+                border: '3px solid #000000',
+                boxShadow: '3px 3px 0px 0px #000000',
+                width: '52px',
+                height: '52px',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <FileText size={28} strokeWidth={2.5} />
+            </div>
+            <span className="neo-badge neo-badge-yellow">TOTAL LAPORAN</span>
           </div>
-          <span className="neo-badge neo-badge-pink" style={{ marginBottom: '0.75rem' }}>PRIORITAS UTAMA</span>
-          <h3 className="font-display" style={{ fontSize: '1.3rem', fontWeight: 800, margin: '0.5rem 0', color: 'var(--neo-text)' }}>
-            Penanganan Bullying 1×24 Jam
+
+          <div className="font-display" style={{ fontSize: '3rem', fontWeight: 900, color: 'var(--neo-text)', lineHeight: 1, margin: '0.75rem 0 0.25rem' }}>
+            {stats.totalLaporan}
+          </div>
+
+          <h3 className="font-display" style={{ fontSize: '1.2rem', fontWeight: 800, margin: '0.25rem 0 0.5rem', color: 'var(--neo-text)' }}>
+            Total Laporan Masuk
           </h3>
-          <p style={{ color: 'var(--neo-text-muted)', fontSize: '0.925rem', fontWeight: 500 }}>
-            Setiap laporan kategori perundungan akan langsung ditandai <strong style={{ color: '#ff3b5c' }}>Alert Merah</strong> dan wajib diproses MPK dalam 24 jam.
+          <p style={{ color: 'var(--neo-text-muted)', fontSize: '0.875rem', fontWeight: 500 }}>
+            Jumlah seluruh aspirasi & laporan Taruna yang telah diterima oleh sistem.
           </p>
         </div>
 
-        {/* Card 2: Zero IP Logging */}
-        <div className="neo-card neo-card-hover" style={{ padding: '1.75rem' }}>
-          <div
-            style={{
-              background: '#ffe600',
-              color: '#000000',
-              border: '3px solid #000000',
-              boxShadow: '3px 3px 0px 0px #000000',
-              width: '52px',
-              height: '52px',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: '1rem',
-            }}
-          >
-            <EyeOff size={28} strokeWidth={2.5} />
+        {/* Card 2: Sedang Diproses */}
+        <div className="neo-card neo-card-hover-pink" style={{ padding: '1.75rem', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+            <div
+              style={{
+                background: '#a855f7',
+                color: '#ffffff',
+                border: '3px solid #000000',
+                boxShadow: '3px 3px 0px 0px #000000',
+                width: '52px',
+                height: '52px',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Clock size={28} strokeWidth={2.5} />
+            </div>
+            <span className="neo-badge neo-badge-purple">DALAM PROSES</span>
           </div>
-          <span className="neo-badge neo-badge-yellow" style={{ marginBottom: '0.75rem' }}>PRIVASI TOTAL</span>
-          <h3 className="font-display" style={{ fontSize: '1.3rem', fontWeight: 800, margin: '0.5rem 0', color: 'var(--neo-text)' }}>
-            Zero IP & Headers Logging
+
+          <div className="font-display" style={{ fontSize: '3rem', fontWeight: 900, color: 'var(--neo-text)', lineHeight: 1, margin: '0.75rem 0 0.25rem' }}>
+            {stats.sedangDiproses}
+          </div>
+
+          <h3 className="font-display" style={{ fontSize: '1.2rem', fontWeight: 800, margin: '0.25rem 0 0.5rem', color: 'var(--neo-text)' }}>
+            Laporan Sedang Diproses
           </h3>
-          <p style={{ color: 'var(--neo-text-muted)', fontSize: '0.925rem', fontWeight: 500 }}>
-            Sistem secara otomatis membuang IP Address, User-Agent, dan lokasi Anda pada level middleware API. Tidak ada jejak digital!
+          <p style={{ color: 'var(--neo-text-muted)', fontSize: '0.875rem', fontWeight: 500 }}>
+            Laporan yang sedang ditinjau dan ditindaklanjuti oleh tim MPK & Pengasuh.
           </p>
         </div>
 
-        {/* Card 3: Enkripsi AES-256 */}
-        <div className="neo-card neo-card-hover-mint" style={{ padding: '1.75rem' }}>
-          <div
-            style={{
-              background: '#00f0ff',
-              color: '#000000',
-              border: '3px solid #000000',
-              boxShadow: '3px 3px 0px 0px #000000',
-              width: '52px',
-              height: '52px',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: '1rem',
-            }}
-          >
-            <Lock size={28} strokeWidth={2.5} />
+        {/* Card 3: Sudah Ditangani */}
+        <div className="neo-card neo-card-hover-mint" style={{ padding: '1.75rem', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+            <div
+              style={{
+                background: '#00f0ff',
+                color: '#000000',
+                border: '3px solid #000000',
+                boxShadow: '3px 3px 0px 0px #000000',
+                width: '52px',
+                height: '52px',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <CheckCircle2 size={28} strokeWidth={2.5} />
+            </div>
+            <span className="neo-badge neo-badge-mint">SUDAH DITANGANI</span>
           </div>
-          <span className="neo-badge neo-badge-mint" style={{ marginBottom: '0.75rem' }}>KEAMANAN DATA</span>
-          <h3 className="font-display" style={{ fontSize: '1.3rem', fontWeight: 800, margin: '0.5rem 0', color: 'var(--neo-text)' }}>
-            Enkripsi AES-256-GCM
+
+          <div className="font-display" style={{ fontSize: '3rem', fontWeight: 900, color: 'var(--neo-text)', lineHeight: 1, margin: '0.75rem 0 0.25rem' }}>
+            {stats.sudahDitangani}
+          </div>
+
+          <h3 className="font-display" style={{ fontSize: '1.2rem', fontWeight: 800, margin: '0.25rem 0 0.5rem', color: 'var(--neo-text)' }}>
+            Laporan Sudah Ditangani
           </h3>
-          <p style={{ color: 'var(--neo-text-muted)', fontSize: '0.925rem', fontWeight: 500 }}>
-            Isi laporan & foto bukti dienkripsi di level server sebelum masuk ke database & Storage. Hanya petugas berwenang yang dapat dekripsi.
+          <p style={{ color: 'var(--neo-text-muted)', fontSize: '0.875rem', fontWeight: 500 }}>
+            Aspirasi & laporan yang telah diselesaikan dan diberikan balasan resmi.
           </p>
         </div>
       </section>

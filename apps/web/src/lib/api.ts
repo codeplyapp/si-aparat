@@ -64,6 +64,23 @@ export async function getTrackingStatus(kodeTracking: string): Promise<TrackingR
   return data;
 }
 
+export interface PublicStatsResponse {
+  totalLaporan: number;
+  sedangDiproses: number;
+  sudahDitangani: number;
+}
+
+/** Ambil statistik publik laporan */
+export async function getPublicStats(): Promise<PublicStatsResponse> {
+  const res = await fetch(`${API_BASE}/aspirasi/stats`);
+  const data = await res.json();
+  if (!res.ok) {
+    throw new ApiError(data.message || 'Gagal mengambil statistik', res.status);
+  }
+  return data;
+}
+
+
 /** Login Petugas MPK / Pembina / Admin */
 export async function loginUser(username: string, password: string): Promise<LoginResponse> {
   const controller = new AbortController();
