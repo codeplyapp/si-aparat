@@ -14,7 +14,7 @@ export const Home: React.FC = () => {
   useEffect(() => {
     getPublicStats()
       .then((data) => setStats(data))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   return (
@@ -116,7 +116,7 @@ export const Home: React.FC = () => {
             Total Laporan Masuk
           </h3>
           <p style={{ color: 'var(--neo-text-muted)', fontSize: '0.875rem', fontWeight: 500 }}>
-            Jumlah seluruh aspirasi & laporan Taruna yang telah diterima oleh sistem.
+            Jumlah seluruh aspirasi & laporan Taruna yang telah diterima oleh MPK.
           </p>
         </div>
 
@@ -150,7 +150,7 @@ export const Home: React.FC = () => {
             Laporan Sedang Diproses
           </h3>
           <p style={{ color: 'var(--neo-text-muted)', fontSize: '0.875rem', fontWeight: 500 }}>
-            Laporan yang sedang ditinjau dan ditindaklanjuti oleh tim MPK & Pengasuh.
+            Laporan yang sedang ditinjau dan ditindaklanjuti oleh tim MPK & Pembina.
           </p>
         </div>
 
