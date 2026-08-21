@@ -6,7 +6,14 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { StatusLaporan } from '@si-aparat/shared';
+import {
+  StatusLaporan,
+  StatusMatriks,
+  KategoriLaporan,
+  hitungStatusMatriks,
+  KATEGORI_LABELS,
+  STATUS_MATRIKS_LABELS,
+} from '@si-aparat/shared';
 import { requireMPK, JwtPayload } from '../../middleware/auth';
 import { decryptText } from '../../lib/crypto';
 import { getPresignedDownloadUrl } from '../../lib/storage';
@@ -15,6 +22,13 @@ const prisma = new PrismaClient();
 
 const updateStatusSchema = z.object({
   status: z.nativeEnum(StatusLaporan),
+});
+
+const updateMatriksSchema = z.object({
+  skorDampak: z.number().int().min(1).max(4).nullable().optional(),
+  skorKelayakan: z.number().int().min(1).max(4).nullable().optional(),
+  isMelanggarAturan: z.boolean().optional(),
+  catatanTindakLanjut: z.string().max(2000).nullable().optional(),
 });
 
 const balasanSchema = z.object({
@@ -27,11 +41,18 @@ export async function mpkRoutes(fastify: FastifyInstance) {
 
   // ─── GET /api/v1/mpk/laporan ──────────────────────────────────────
   fastify.get('/laporan', async (_request: FastifyRequest, reply: FastifyReply) => {
-    const { status, kategori, page = '1', limit = '20' } = _request.query as Record<string, string>;
+    const { status, kategori, statusMatriks, page = '1', limit = '20' } = _request.query as Record<string, string>;
 
     const where: Record<string, unknown> = {};
     if (status && status !== 'undefined') where.status = status;
     if (kategori && kategori !== 'undefined') where.kategori = kategori;
+    if (statusMatriks && statusMatriks !== 'undefined') {
+      if (statusMatriks === 'BELUM_DINILAI') {
+        where.statusMatriks = null;
+      } else {
+        where.statusMatriks = statusMatriks;
+      }
+    }
 
     const skip = (Number(page) - 1) * Number(limit);
 
@@ -47,6 +68,12 @@ export async function mpkRoutes(fastify: FastifyInstance) {
           kategori: true,
           status: true,
           isEskalasi: true,
+          skorDampak: true,
+          skorKelayakan: true,
+          isMelanggarAturan: true,
+          statusMatriks: true,
+          catatanTindakLanjut: true,
+          matriksUpdatedAt: true,
           createdAt: true,
           updatedAt: true,
           _count: { select: { lampiran: true } },
@@ -59,6 +86,93 @@ export async function mpkRoutes(fastify: FastifyInstance) {
       data: laporan,
       pagination: { total, page: Number(page), limit: Number(limit) },
     });
+  });
+
+  // ─── GET /api/v1/mpk/export/matriks.csv ───────────────────────────
+  fastify.get('/export/matriks.csv', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { status, kategori, statusMatriks } = request.query as Record<string, string>;
+
+    const where: Record<string, unknown> = {};
+    if (status && status !== 'undefined') where.status = status;
+    if (kategori && kategori !== 'undefined') where.kategori = kategori;
+    if (statusMatriks && statusMatriks !== 'undefined') {
+      if (statusMatriks === 'BELUM_DINILAI') {
+        where.statusMatriks = null;
+      } else {
+        where.statusMatriks = statusMatriks;
+      }
+    }
+
+    const laporanList = await prisma.laporan.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        kodeTracking: true,
+        createdAt: true,
+        konten: true,
+        kategori: true,
+        skorDampak: true,
+        skorKelayakan: true,
+        statusMatriks: true,
+        catatanTindakLanjut: true,
+      },
+    });
+
+    const escapeCsvCell = (value: unknown): string => {
+      if (value === null || value === undefined) return '""';
+      const str = String(value).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const rows: string[] = [
+      // Header row (UTF-8 BOM + Delimiter ;)
+      [
+        'ID Aspirasi',
+        'Tanggal',
+        'Rincian',
+        'Kategori',
+        'Skor Dampak',
+        'Skor Kelayakan',
+        'Status Final',
+        'Catatan & Tindak Lanjut',
+      ].map(escapeCsvCell).join(';'),
+    ];
+
+    for (const item of laporanList) {
+      let isiDecrypted: string;
+      try {
+        isiDecrypted = decryptText(item.konten);
+      } catch {
+        isiDecrypted = '[Gagal mendekripsi konten]';
+      }
+
+      const tanggal = item.createdAt.toISOString().split('T')[0];
+      const kategoriLabel = KATEGORI_LABELS[item.kategori as KategoriLaporan] || item.kategori;
+      const statusFinalLabel = item.statusMatriks
+        ? STATUS_MATRIKS_LABELS[item.statusMatriks as StatusMatriks] || item.statusMatriks
+        : 'Belum Dinilai';
+
+      const row = [
+        item.kodeTracking,
+        tanggal,
+        isiDecrypted,
+        kategoriLabel,
+        item.skorDampak !== null && item.skorDampak !== undefined ? item.skorDampak : '-',
+        item.skorKelayakan !== null && item.skorKelayakan !== undefined ? item.skorKelayakan : '-',
+        statusFinalLabel,
+        item.catatanTindakLanjut || '-',
+      ].map(escapeCsvCell).join(';');
+
+      rows.push(row);
+    }
+
+    // UTF-8 BOM (\uFEFF)
+    const csvContent = '\uFEFF' + rows.join('\r\n');
+
+    return reply
+      .header('Content-Type', 'text/csv; charset=utf-8')
+      .header('Content-Disposition', 'attachment; filename="matriks-penilaian-aspirasi.csv"')
+      .send(csvContent);
   });
 
   // ─── GET /api/v1/mpk/laporan/:id ─────────────────────────────────
@@ -120,6 +234,71 @@ export async function mpkRoutes(fastify: FastifyInstance) {
       });
 
       return reply.send({ message: 'Status laporan berhasil diperbarui.', laporan });
+    },
+  );
+
+  // ─── PATCH /api/v1/mpk/laporan/:id/matriks ───────────────────────
+  fastify.patch(
+    '/laporan/:id/matriks',
+    async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      const parsed = updateMatriksSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: 'Validation Error',
+          message: 'Data penilaian matriks tidak valid.',
+          details: parsed.error.format(),
+        });
+      }
+
+      const existing = await prisma.laporan.findUnique({
+        where: { id: request.params.id },
+        select: { id: true, kategori: true },
+      });
+
+      if (!existing) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Laporan tidak ditemukan.' });
+      }
+
+      const isMelanggarAturan = parsed.data.isMelanggarAturan ?? false;
+      const skorDampak = parsed.data.skorDampak ?? null;
+      const skorKelayakan = parsed.data.skorKelayakan ?? null;
+      const catatanTindakLanjut = parsed.data.catatanTindakLanjut ?? null;
+
+      const statusMatriks = hitungStatusMatriks({
+        kategori: existing.kategori as KategoriLaporan,
+        isMelanggarAturan,
+        skorDampak,
+        skorKelayakan,
+      });
+
+      const updated = await prisma.laporan.update({
+        where: { id: request.params.id },
+        data: {
+          skorDampak,
+          skorKelayakan,
+          isMelanggarAturan,
+          statusMatriks,
+          catatanTindakLanjut,
+          matriksUpdatedAt: new Date(),
+        },
+        select: {
+          id: true,
+          kodeTracking: true,
+          kategori: true,
+          status: true,
+          skorDampak: true,
+          skorKelayakan: true,
+          isMelanggarAturan: true,
+          statusMatriks: true,
+          catatanTindakLanjut: true,
+          matriksUpdatedAt: true,
+        },
+      });
+
+      return reply.send({
+        message: 'Penilaian matriks berhasil disimpan.',
+        laporan: updated,
+      });
     },
   );
 

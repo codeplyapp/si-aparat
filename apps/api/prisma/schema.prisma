@@ -33,6 +33,13 @@ enum StatusLaporan {
   SELESAI
 }
 
+enum StatusMatriks {
+  PRIORITAS_UTAMA
+  ADVOKASI
+  DELEGASI_OSIS
+  ARSIP
+}
+
 // ─── Models ────────────────────────────────────────────────────────────────
 
 model User {
@@ -54,26 +61,36 @@ model User {
 }
 
 model Laporan {
-  id           String          @id @default(uuid())
-  kodeTracking String          @unique
-  kategori     KategoriLaporan
+  id                  String          @id @default(uuid())
+  kodeTracking        String          @unique
+  kategori            KategoriLaporan
   /// Konten terenkripsi AES-256-GCM (base64). TIDAK PERNAH disimpan plaintext.
-  konten       String
-  status       StatusLaporan   @default(BARU)
-  isEskalasi   Boolean         @default(false)
-  notifiedAt   DateTime?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  konten              String
+  status              StatusLaporan   @default(BARU)
+  isEskalasi          Boolean         @default(false)
+  notifiedAt          DateTime?
+  
+  // Penilaian Matriks Tabulasi (Rapat Pleno)
+  skorDampak          Int?
+  skorKelayakan       Int?
+  isMelanggarAturan   Boolean         @default(false)
+  statusMatriks       StatusMatriks?
+  catatanTindakLanjut String?
+  matriksUpdatedAt    DateTime?
+
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
   // Relations
-  lampiran     LampiranFoto[]
-  balasan      BalasanMPK?
-  catatan      CatatanPembina[]
+  lampiran            LampiranFoto[]
+  balasan             BalasanMPK?
+  catatan             CatatanPembina[]
 
   // Indexes untuk performa query dashboard
   @@index([status])
   @@index([kategori])
   @@index([isEskalasi])
+  @@index([statusMatriks])
   @@index([createdAt(sort: Desc)])
   @@map("laporan")
 }

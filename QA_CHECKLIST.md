@@ -29,3 +29,12 @@
 *   [ ] Taruna UAT: Berhasil scan QR dan kirim aspirasi dalam waktu `<= 3 menit`.
 *   [ ] MPK UAT: Berhasil mengubah status laporan menjadi DIPROSES.
 *   [ ] Pembina UAT: Menegaskan bahwa mereka TIDAK dapat menemukan identitas pelapor dari dashboard.
+
+## 5. Matriks Tabulasi & Penilaian Pleno MPK
+*   [ ] **Unit Test Matriks:** Semua skenario presedensi `hitungStatusMatriks` lolos 100% (Melanggar aturan -> ARSIP, Perundungan -> PRIORITAS_UTAMA, Kegiatan -> DELEGASI_OSIS, Matriks Skor 1-4).
+*   [ ] **Presedensi Aturan:** Laporan yang ditandai melanggar aturan sekolah langsung menjadi ARSIP meski skor dampak/kelayakan tinggi.
+*   [ ] **Live Status Preview:** Perubahan skor dampak/kelayakan pada modal pleno langsung memperbarui preview badge status secara real-time.
+*   [ ] **Penyimpanan Matriks:** Nilai `skorDampak`, `skorKelayakan`, `isMelanggarAturan`, `statusMatriks`, dan `catatanTindakLanjut` tersimpan presisten di database.
+*   [ ] **Filter Matriks:** Filter Status Matriks pada Dashboard MPK menyaring data laporan dengan tepat (termasuk filter "Belum Dinilai").
+*   [ ] **Export CSV Pleno:** File CSV hasil ekspor memiliki UTF-8 BOM dan delimiter titik koma (`;`) sehingga langsung terformat rapi di Microsoft Excel.
+

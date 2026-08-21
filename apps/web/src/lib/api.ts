@@ -4,7 +4,9 @@ import type {
   LoginResponse,
   KategoriLaporan,
   StatusLaporan,
+  StatusMatriks,
   RoleUser,
+  UpdateMatriksRequest,
 } from '@si-aparat/shared';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://si-aparat.onrender.com/api/v1';
@@ -123,6 +125,12 @@ export interface LaporanItemMPK {
   kategori: KategoriLaporan;
   status: StatusLaporan;
   isEskalasi: boolean;
+  skorDampak: number | null;
+  skorKelayakan: number | null;
+  isMelanggarAturan: boolean;
+  statusMatriks: StatusMatriks | null;
+  catatanTindakLanjut: string | null;
+  matriksUpdatedAt: string | null;
   createdAt: string;
   updatedAt: string;
   _count: { lampiran: number };
@@ -148,10 +156,12 @@ export interface LaporanDetailMPK extends LaporanItemMPK {
 export async function getLaporanListMPK(filters?: {
   status?: string;
   kategori?: string;
+  statusMatriks?: string;
 }): Promise<{ data: LaporanItemMPK[]; pagination: { total: number } }> {
   const params = new URLSearchParams();
   if (filters?.status) params.set('status', filters.status);
   if (filters?.kategori) params.set('kategori', filters.kategori);
+  if (filters?.statusMatriks) params.set('statusMatriks', filters.statusMatriks);
   const query = params.toString();
   const res = await fetch(`${API_BASE}/mpk/laporan?${query}`, {
     headers: getAuthHeader(),
@@ -183,6 +193,64 @@ export async function updateStatusMPK(id: string, status: StatusLaporan): Promis
     const data = await res.json();
     throw new ApiError(data.message || 'Gagal mengubah status', res.status);
   }
+}
+
+export async function updateMatriksMPK(
+  id: string,
+  payload: UpdateMatriksRequest,
+): Promise<{ message: string; laporan: LaporanItemMPK }> {
+  const res = await fetch(`${API_BASE}/mpk/laporan/${id}/matriks`, {
+    method: 'PATCH',
+    headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new ApiError(data.message || 'Gagal menyimpan penilaian matriks', res.status);
+  }
+  return data;
+}
+
+export async function exportMatriksCSV(filters?: {
+  status?: string;
+  kategori?: string;
+  statusMatriks?: string;
+}): Promise<Blob> {
+  const params = new URLSearchParams();
+  if (filters?.status) params.set('status', filters.status);
+  if (filters?.kategori) params.set('kategori', filters.kategori);
+  if (filters?.statusMatriks) params.set('statusMatriks', filters.statusMatriks);
+  const query = params.toString();
+
+  const res = await fetch(`${API_BASE}/mpk/export/matriks.csv?${query}`, {
+    headers: getAuthHeader(),
+  });
+
+  if (!res.ok) {
+    let errorMsg = 'Gagal mengekspor CSV';
+    try {
+      const err = await res.json();
+      errorMsg = err.message || errorMsg;
+    } catch {
+      // fallback
+    }
+    throw new ApiError(errorMsg, res.status);
+  }
+
+  return await res.blob();
+}
+
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.style.display = 'none';
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
 }
 
 export async function eskalasiMPK(id: string): Promise<void> {
