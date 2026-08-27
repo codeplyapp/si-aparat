@@ -21,6 +21,7 @@ import { generateKodeTracking, isValidKodeTracking } from '../../lib/tracking';
 import { processImage, ImageValidationError } from '../../lib/image';
 import { uploadEncryptedFile, generateStorageKey } from '../../lib/storage';
 import { sendNewReportNotification } from '../../lib/email';
+import { validateAntiSpam, sanitizeKonten } from '../../lib/antispam';
 
 const prisma = new PrismaClient();
 
@@ -34,23 +35,9 @@ const submitSchema = z.object({
 
 export async function aspirasiRoutes(fastify: FastifyInstance) {
   // ─── POST /api/v1/aspirasi ────────────────────────────────────────
+  // Tanpa kuota batasan jumlah harian — diproteksi oleh multi-layer anti-spam
   fastify.post(
     '/',
-    {
-      config: {
-        rateLimit: {
-          max: 5,
-          timeWindow: '24 hours',
-          keyGenerator: (req: FastifyRequest) =>
-            (req.headers['x-real-ip'] as string) ?? '0.0.0.0',
-          errorResponseBuilder: () => ({
-            error: 'Too Many Requests',
-            message:
-              'Anda telah mencapai batas maksimum 5 laporan per hari. Coba lagi besok.',
-          }),
-        },
-      },
-    },
     async (request: FastifyRequest, reply: FastifyReply) => {
       // Anonymize sebelum proses apapun
       await anonymizeMiddleware(request, reply);
@@ -59,12 +46,16 @@ export async function aspirasiRoutes(fastify: FastifyInstance) {
       const parts = request.parts();
       let kategori: KategoriLaporan | undefined;
       let konten: string | undefined;
+      let honeypot: string | undefined;
+      let formTimestamp: string | undefined;
       const fotoBuffers: { buffer: Buffer; fieldname: string }[] = [];
 
       for await (const part of parts) {
         if (part.type === 'field') {
           if (part.fieldname === 'kategori') kategori = part.value as KategoriLaporan;
           if (part.fieldname === 'konten') konten = part.value as string;
+          if (part.fieldname === 'website' || part.fieldname === 'hp_field') honeypot = part.value as string;
+          if (part.fieldname === '_ts' || part.fieldname === 'timestamp') formTimestamp = part.value as string;
         } else if (part.type === 'file' && part.fieldname === 'foto') {
           const chunks: Buffer[] = [];
           for await (const chunk of part.file) {
@@ -74,7 +65,7 @@ export async function aspirasiRoutes(fastify: FastifyInstance) {
         }
       }
 
-      // Validasi input
+      // Validasi input skema dasar
       const parsed = submitSchema.safeParse({ kategori, konten });
       if (!parsed.success) {
         return reply.status(400).send({
@@ -82,6 +73,22 @@ export async function aspirasiRoutes(fastify: FastifyInstance) {
           message: parsed.error.errors[0]?.message ?? 'Input tidak valid',
         });
       }
+
+      // Validasi proteksi anti-spam multi-layer
+      const antiSpamCheck = validateAntiSpam({
+        honeypot,
+        formTimestamp,
+        konten: parsed.data.konten,
+      });
+
+      if (!antiSpamCheck.isValid) {
+        return reply.status(400).send({
+          error: 'Spam Protection',
+          message: antiSpamCheck.message ?? 'Laporan terindikasi spam.',
+        });
+      }
+
+      const cleanedKonten = sanitizeKonten(parsed.data.konten);
 
       // Generate kode tracking unik (retry jika collision)
       let kodeTracking: string;
@@ -93,8 +100,8 @@ export async function aspirasiRoutes(fastify: FastifyInstance) {
         attempts++;
       } while (attempts < 5);
 
-      // Enkripsi konten
-      const kontenEncrypted = encryptText(parsed.data.konten);
+      // Enkripsi konten yang telah disanitasi
+      const kontenEncrypted = encryptText(cleanedKonten);
 
       // Simpan laporan ke DB
       const laporan = await prisma.laporan.create({

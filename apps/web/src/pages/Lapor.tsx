@@ -18,6 +18,10 @@ export const Lapor: React.FC = () => {
   const [fotos, setFotos] = useState<File[]>([]);
   const [confirmed, setConfirmed] = useState<boolean>(false);
 
+  // Anti-Spam & Bot Protection States
+  const [honeypot, setHoneypot] = useState<string>('');
+  const [formMountedAt, setFormMountedAt] = useState<number>(() => Date.now());
+
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -66,7 +70,10 @@ export const Lapor: React.FC = () => {
     setErrorMsg(null);
 
     try {
-      const res = await submitAspirasi(kategori, konten, fotos);
+      const res = await submitAspirasi(kategori, konten, fotos, {
+        honeypot,
+        formTimestamp: formMountedAt,
+      });
       setSuccessKode(res.kodeTracking);
     } catch (err) {
       if (err instanceof ApiError) {
@@ -117,6 +124,32 @@ export const Lapor: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit}>
+          {/* Anti-Bot Honeypot Field (Invisible to human users) */}
+          <div
+            style={{
+              position: 'absolute',
+              opacity: 0,
+              top: 0,
+              left: '-9999px',
+              width: '1px',
+              height: '1px',
+              overflow: 'hidden',
+              pointerEvents: 'none',
+            }}
+            aria-hidden="true"
+          >
+            <label htmlFor="website">Website</label>
+            <input
+              id="website"
+              type="text"
+              name="website"
+              tabIndex={-1}
+              autoComplete="off"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+            />
+          </div>
+
           {/* Kategori Selection */}
           <div style={{ marginBottom: '1.75rem' }}>
             <label className="font-display" style={{ display: 'block', fontWeight: 800, marginBottom: '0.75rem', fontSize: '1.05rem', color: 'var(--neo-text)' }}>
@@ -412,6 +445,8 @@ export const Lapor: React.FC = () => {
                   setKonten('');
                   setFotos([]);
                   setConfirmed(false);
+                  setHoneypot('');
+                  setFormMountedAt(Date.now());
                 }}
                 className="neo-btn-secondary"
                 style={{ flex: 1, justifyContent: 'center' }}

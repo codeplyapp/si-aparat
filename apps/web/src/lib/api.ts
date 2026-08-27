@@ -31,10 +31,21 @@ export async function submitAspirasi(
   kategori: KategoriLaporan,
   konten: string,
   fotos: File[],
+  options?: {
+    honeypot?: string;
+    formTimestamp?: number;
+  },
 ): Promise<SubmitAspirasiResponse> {
   const formData = new FormData();
   formData.append('kategori', kategori);
   formData.append('konten', konten);
+
+  if (options?.honeypot) {
+    formData.append('website', options.honeypot);
+  }
+  if (options?.formTimestamp) {
+    formData.append('_ts', options.formTimestamp.toString());
+  }
   
   fotos.forEach((foto) => {
     formData.append('foto', foto);
