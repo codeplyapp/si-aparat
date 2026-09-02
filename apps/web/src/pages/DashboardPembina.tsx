@@ -21,6 +21,7 @@ import {
   MessageSquarePlus,
   ShieldCheck,
   AlertTriangle,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 export const DashboardPembina: React.FC = () => {
@@ -149,6 +150,7 @@ export const DashboardPembina: React.FC = () => {
                 <th className="font-display" style={{ padding: '16px 18px', fontWeight: 800 }}>Kategori</th>
                 <th className="font-display" style={{ padding: '16px 18px', fontWeight: 800 }}>Tanggal Eskalasi</th>
                 <th className="font-display" style={{ padding: '16px 18px', fontWeight: 800 }}>Status</th>
+                <th className="font-display" style={{ padding: '16px 18px', fontWeight: 800 }}>Foto</th>
                 <th className="font-display" style={{ padding: '16px 18px', textAlign: 'right', fontWeight: 800 }}>Aksi</th>
               </tr>
             </thead>
@@ -171,6 +173,15 @@ export const DashboardPembina: React.FC = () => {
                     </td>
                     <td style={{ padding: '16px 18px' }}>
                       {getStatusBadge(item.status)}
+                    </td>
+                    <td style={{ padding: '16px 18px', color: 'var(--neo-text-muted)' }}>
+                      {item._count && item._count.lampiran > 0 ? (
+                        <span className="neo-badge neo-badge-mint" style={{ fontSize: '0.75rem' }}>
+                          <ImageIcon size={14} strokeWidth={2.5} /> {item._count.lampiran} foto
+                        </span>
+                      ) : (
+                        '-'
+                      )}
                     </td>
                     <td style={{ padding: '16px 18px', textAlign: 'right' }}>
                       <button onClick={() => openDetail(item.id)} className="neo-btn-primary" style={{ padding: '8px 14px', fontSize: '0.85rem' }}>
@@ -224,6 +235,23 @@ export const DashboardPembina: React.FC = () => {
                     {detail.konten}
                   </div>
                 </div>
+
+                {/* Foto Lampiran Bukti */}
+                {detail.lampiran && detail.lampiran.length > 0 && (
+                  <div style={{ marginBottom: '1.75rem' }}>
+                    <h4 className="font-display" style={{ fontSize: '0.95rem', color: 'var(--neo-text-muted)', marginBottom: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 800 }}>
+                      Foto Bukti (Presigned URL 15 Menit)
+                    </h4>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                      {detail.lampiran.map((foto, idx) => (
+                        <a key={idx} href={foto.downloadUrl} target="_blank" rel="noreferrer" className="neo-btn-secondary" style={{ padding: '10px 16px', fontSize: '0.85rem' }}>
+                          <ImageIcon size={18} strokeWidth={2.5} color="#0d0e12" />
+                          <span>Lihat Foto Bukti {idx + 1}</span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* History Catatan Tindak Lanjut */}
                 <div style={{ marginBottom: '2rem' }}>

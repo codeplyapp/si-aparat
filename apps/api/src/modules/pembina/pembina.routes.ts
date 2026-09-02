@@ -9,6 +9,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { requirePembina, JwtPayload } from '../../middleware/auth';
 import { decryptText } from '../../lib/crypto';
+import { getPresignedDownloadUrl } from '../../lib/storage';
 
 const prisma = new PrismaClient();
 
@@ -21,7 +22,7 @@ export async function pembinaRoutes(fastify: FastifyInstance) {
 
   // ─── GET /api/v1/pembina/laporan ──────────────────────────────────
   fastify.get('/laporan', async (_request: FastifyRequest, reply: FastifyReply) => {
-    const { page = '1', limit = '20' } = _request.query as Record<string, string>;
+    const { page = '1', limit = '100' } = _request.query as Record<string, string>;
     const skip = (Number(page) - 1) * Number(limit);
 
     const [laporan, total] = await Promise.all([
@@ -37,7 +38,7 @@ export async function pembinaRoutes(fastify: FastifyInstance) {
           status: true,
           createdAt: true,
           updatedAt: true,
-          // ⚠️ TIDAK expose konten di list view — hanya di detail
+          _count: { select: { lampiran: true } },
         },
       }),
       prisma.laporan.count({ where: { isEskalasi: true } }),
@@ -61,6 +62,7 @@ export async function pembinaRoutes(fastify: FastifyInstance) {
             orderBy: { createdAt: 'desc' },
           },
           balasan: true,
+          lampiran: true,
           _count: { select: { lampiran: true } },
         },
       });
@@ -80,8 +82,16 @@ export async function pembinaRoutes(fastify: FastifyInstance) {
         kontenDecrypted = '[Gagal mendekripsi konten laporan]';
       }
 
-      // ⚠️ Pembina TIDAK mendapatkan akses foto (presigned URL)
-      // Pembina hanya tahu jumlah foto yang ada
+      // Generate presigned URLs untuk foto bukti (15 menit TTL)
+      const lampiranWithUrls = await Promise.all(
+        laporan.lampiran.map(async (foto) => ({
+          id: foto.id,
+          mimeType: foto.mimeType,
+          fileSizeBytes: foto.fileSizeBytes,
+          downloadUrl: await getPresignedDownloadUrl(foto.r2Key),
+        })),
+      );
+
       return reply.send({
         id: laporan.id,
         kodeTracking: laporan.kodeTracking,
@@ -89,11 +99,11 @@ export async function pembinaRoutes(fastify: FastifyInstance) {
         status: laporan.status,
         konten: kontenDecrypted,
         jumlahFoto: laporan._count.lampiran,
+        lampiran: lampiranWithUrls,
         catatan: laporan.catatan,
         balasan: laporan.balasan,
         createdAt: laporan.createdAt.toISOString(),
         updatedAt: laporan.updatedAt.toISOString(),
-        // ⚠️ TIDAK ADA identitas pelapor — karena memang tidak pernah disimpan
       });
     },
   );

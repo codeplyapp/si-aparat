@@ -312,6 +312,12 @@ export interface LaporanDetailPembina {
   status: StatusLaporan;
   konten: string;
   jumlahFoto: number;
+  lampiran: Array<{
+    id: string;
+    mimeType: string;
+    fileSizeBytes: number;
+    downloadUrl: string;
+  }>;
   catatan: Array<{
     id: string;
     catatan: string;

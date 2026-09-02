@@ -1,20 +1,56 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RoleUser } from '@si-aparat/shared';
-import { getUserListAdmin, createUserAdmin, deleteUserAdmin, type UserItemAdmin, ApiError } from '../lib/api';
+import {
+  RoleUser,
+  KategoriLaporan,
+  StatusLaporan,
+  StatusMatriks,
+  KATEGORI_LABELS,
+  STATUS_LABELS,
+  STATUS_MATRIKS_LABELS,
+} from '@si-aparat/shared';
+import {
+  getUserListAdmin,
+  createUserAdmin,
+  deleteUserAdmin,
+  getLaporanListMPK,
+  getLaporanDetailMPK,
+  type UserItemAdmin,
+  type LaporanItemMPK,
+  type LaporanDetailMPK,
+  ApiError,
+} from '../lib/api';
+import {
+  UserPlus,
+  Trash2,
+  QrCode,
+  LogOut,
+  RefreshCw,
+  AlertTriangle,
+  Printer,
+  Users,
+  FileText,
+  Eye,
+  Image as ImageIcon,
+  Filter,
+} from 'lucide-react';
+import mpkLogo from '../assets/logo-mpk.png';
 
 const ROLE_LABELS: Record<RoleUser, string> = {
   [RoleUser.SUPER_ADMIN]: 'Super Admin',
   [RoleUser.MPK]: 'MPK',
   [RoleUser.PEMBINA]: 'Pengasuh Pembina',
 };
-import { UserPlus, Trash2, QrCode, LogOut, RefreshCw, AlertTriangle, Printer } from 'lucide-react';
-import mpkLogo from '../assets/logo-mpk.png';
 
 export const DashboardAdmin: React.FC = () => {
   const navigate = useNavigate();
+
+  // Active Tab: 'users' | 'laporan'
+  const [activeTab, setActiveTab] = useState<'users' | 'laporan'>('users');
+
+  // Users State
   const [users, setUsers] = useState<UserItemAdmin[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [usersLoading, setUsersLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -29,8 +65,21 @@ export const DashboardAdmin: React.FC = () => {
   // Modal QR Poster State
   const [showQrModal, setShowQrModal] = useState(false);
 
+  // Laporan State (Tab 2)
+  const [laporanList, setLaporanList] = useState<LaporanItemMPK[]>([]);
+  const [laporanLoading, setLaporanLoading] = useState<boolean>(false);
+  const [laporanError, setLaporanError] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [filterKategori, setFilterKategori] = useState<string>('');
+  const [filterStatusMatriks, setFilterStatusMatriks] = useState<string>('');
+
+  // Selected Detail Laporan Modal
+  const [selectedLaporanId, setSelectedLaporanId] = useState<string | null>(null);
+  const [detailLaporan, setDetailLaporan] = useState<LaporanDetailMPK | null>(null);
+  const [detailLoading, setDetailLoading] = useState<boolean>(false);
+
   const fetchUsers = useCallback(async () => {
-    setLoading(true);
+    setUsersLoading(true);
     setErrorMsg(null);
     try {
       const res = await getUserListAdmin();
@@ -39,13 +88,52 @@ export const DashboardAdmin: React.FC = () => {
       if (err instanceof ApiError) setErrorMsg(err.message);
       else setErrorMsg('Gagal memuat daftar pengguna.');
     } finally {
-      setLoading(false);
+      setUsersLoading(false);
     }
   }, []);
+
+  const fetchLaporan = useCallback(async () => {
+    setLaporanLoading(true);
+    setLaporanError(null);
+    try {
+      const res = await getLaporanListMPK({
+        status: filterStatus || undefined,
+        kategori: filterKategori || undefined,
+        statusMatriks: filterStatusMatriks || undefined,
+        limit: 100,
+      });
+      setLaporanList(res.data);
+    } catch (err) {
+      if (err instanceof ApiError) setLaporanError(err.message);
+      else setLaporanError('Gagal memuat daftar laporan.');
+    } finally {
+      setLaporanLoading(false);
+    }
+  }, [filterStatus, filterKategori, filterStatusMatriks]);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  useEffect(() => {
+    if (activeTab === 'laporan') {
+      fetchLaporan();
+    }
+  }, [activeTab, fetchLaporan]);
+
+  const openDetailLaporan = async (id: string) => {
+    setSelectedLaporanId(id);
+    setDetailLoading(true);
+    setDetailLaporan(null);
+    try {
+      const data = await getLaporanDetailMPK(id);
+      setDetailLaporan(data);
+    } catch (err) {
+      if (err instanceof ApiError) alert(err.message);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,19 +173,60 @@ export const DashboardAdmin: React.FC = () => {
     navigate('/login');
   };
 
+  const getStatusBadge = (status: StatusLaporan) => {
+    const classMap: Record<StatusLaporan, string> = {
+      [StatusLaporan.BARU]: 'neo-badge-yellow',
+      [StatusLaporan.DIPROSES]: 'neo-badge-orange',
+      [StatusLaporan.DITERUSKAN]: 'neo-badge-purple',
+      [StatusLaporan.SELESAI]: 'neo-badge-mint',
+    };
+    return <span className={`neo-badge ${classMap[status]}`}>{STATUS_LABELS[status]}</span>;
+  };
+
+  const getMatriksBadge = (status: StatusMatriks | null) => {
+    if (!status) {
+      return (
+        <span
+          className="neo-badge"
+          style={{ background: '#e2e8f0', color: '#475569', borderColor: '#64748b' }}
+        >
+          ⚪ Belum Dinilai
+        </span>
+      );
+    }
+
+    const classMap: Record<StatusMatriks, string> = {
+      [StatusMatriks.PRIORITAS_UTAMA]: 'neo-badge-green',
+      [StatusMatriks.ADVOKASI]: 'neo-badge-yellow',
+      [StatusMatriks.DELEGASI_OSIS]: 'neo-badge-mint',
+      [StatusMatriks.ARSIP]: 'neo-badge-pink',
+    };
+
+    return <span className={`neo-badge ${classMap[status]}`}>{STATUS_MATRIKS_LABELS[status]}</span>;
+  };
+
   return (
-    <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '0 1rem' }} className="animate-neo-pop">
+    <div style={{ maxWidth: '1150px', margin: '0 auto', padding: '0 1rem' }} className="animate-neo-pop">
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
         <div>
-          <h1 className="font-display" style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--neo-text)' }}>Panel Super Admin</h1>
+          <h1 className="font-display" style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--neo-text)' }}>
+            Panel Super Admin
+          </h1>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <button onClick={() => setShowQrModal(true)} className="neo-btn-mint" style={{ padding: '10px 18px', fontSize: '0.9rem' }}>
             <QrCode size={18} strokeWidth={2.5} />
             <span>Cetak QR Poster</span>
           </button>
-          <button onClick={fetchUsers} className="neo-btn-secondary" style={{ padding: '10px 18px', fontSize: '0.9rem' }}>
+          <button
+            onClick={() => {
+              if (activeTab === 'users') fetchUsers();
+              else fetchLaporan();
+            }}
+            className="neo-btn-secondary"
+            style={{ padding: '10px 18px', fontSize: '0.9rem' }}
+          >
             <RefreshCw size={18} strokeWidth={2.5} />
             <span>Refresh</span>
           </button>
@@ -108,156 +237,335 @@ export const DashboardAdmin: React.FC = () => {
         </div>
       </div>
 
-      {/* Grid Layout: Form Create User & User Table */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
-        {/* Form Tambah Akun */}
-        <div className="neo-card" style={{ padding: '2rem', background: 'var(--neo-card-bg)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem', borderBottom: '3px solid #000000', paddingBottom: '1rem' }}>
-            <UserPlus size={24} strokeWidth={2.5} color="var(--neo-text)" />
-            <h3 className="font-display" style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--neo-text)' }}>
-              Buat Akun Petugas
-            </h3>
+      {/* Navigation Tabs */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '2rem', borderBottom: '3px solid #000000', paddingBottom: '10px' }}>
+        <button
+          onClick={() => setActiveTab('users')}
+          className="font-display"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 20px',
+            borderRadius: '10px',
+            border: '3px solid #000000',
+            background: activeTab === 'users' ? '#ffe600' : 'var(--neo-card-bg)',
+            color: '#000000',
+            fontWeight: 900,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            boxShadow: activeTab === 'users' ? '4px 4px 0px 0px #000000' : 'none',
+          }}
+        >
+          <Users size={18} strokeWidth={2.5} />
+          <span>Kelola Petugas ({users.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('laporan')}
+          className="font-display"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 20px',
+            borderRadius: '10px',
+            border: '3px solid #000000',
+            background: activeTab === 'laporan' ? '#00f0ff' : 'var(--neo-card-bg)',
+            color: '#000000',
+            fontWeight: 900,
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            boxShadow: activeTab === 'laporan' ? '4px 4px 0px 0px #000000' : 'none',
+          }}
+        >
+          <FileText size={18} strokeWidth={2.5} />
+          <span>Monitoring Laporan & Foto Bukti</span>
+        </button>
+      </div>
+
+      {/* TAB 1: KELOLA PETUGAS */}
+      {activeTab === 'users' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
+          {/* Form Tambah Akun */}
+          <div className="neo-card" style={{ padding: '2rem', background: 'var(--neo-card-bg)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem', borderBottom: '3px solid #000000', paddingBottom: '1rem' }}>
+              <UserPlus size={24} strokeWidth={2.5} color="var(--neo-text)" />
+              <h3 className="font-display" style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--neo-text)' }}>
+                Buat Akun Petugas
+              </h3>
+            </div>
+
+            {errorMsg && (
+              <div className="neo-card-pink" style={{ padding: '10px 14px', fontSize: '0.85rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', gap: '8px' }}>
+                <AlertTriangle size={18} strokeWidth={2.5} />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            {successMsg && (
+              <div className="neo-card-mint" style={{ padding: '10px 14px', fontSize: '0.85rem', fontWeight: 800, marginBottom: '1rem', color: '#000000' }}>
+                {successMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateUser}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="font-display" style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '4px', color: 'var(--neo-text)' }}>
+                  Username (lowercase & angka)
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                  placeholder="misal: mpk_ketua"
+                  className="neo-input"
+                  style={{ padding: '8px 12px', fontSize: '0.9rem' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="font-display" style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '4px', color: 'var(--neo-text)' }}>
+                  Nama Lengkap Petugas
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={namaLengkap}
+                  onChange={(e) => setNamaLengkap(e.target.value)}
+                  placeholder="misal: Taruna M. Rizky"
+                  className="neo-input"
+                  style={{ padding: '8px 12px', fontSize: '0.9rem' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="font-display" style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '4px', color: 'var(--neo-text)' }}>
+                  Email Resmi Notifikasi
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="misal: mpk@sman2tb.sch.id"
+                  className="neo-input"
+                  style={{ padding: '8px 12px', fontSize: '0.9rem' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="font-display" style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '4px', color: 'var(--neo-text)' }}>
+                  Password (min 8 char, KAPITAL & angka)
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="misal: Aparat2026!"
+                  className="neo-input"
+                  style={{ padding: '8px 12px', fontSize: '0.9rem' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label className="font-display" style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '4px', color: 'var(--neo-text)' }}>
+                  Role Hak Akses
+                </label>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value as RoleUser)}
+                  className="neo-input"
+                  style={{ padding: '8px 12px', fontSize: '0.9rem' }}
+                >
+                  <option value={RoleUser.MPK}>MPK (Moderator Laporan)</option>
+                  <option value={RoleUser.PEMBINA}>PEMBINA (Pengasuh Asrama)</option>
+                </select>
+              </div>
+
+              <button type="submit" disabled={formLoading} className="neo-btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px' }}>
+                <span>{formLoading ? 'Membuat...' : 'Buat Akun Sekarang'}</span>
+              </button>
+            </form>
           </div>
 
-          {errorMsg && (
-            <div className="neo-card-pink" style={{ padding: '10px 14px', fontSize: '0.85rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', gap: '8px' }}>
-              <AlertTriangle size={18} strokeWidth={2.5} />
-              <span>{errorMsg}</span>
-            </div>
-          )}
+          {/* Tabel Daftar User */}
+          <div className="neo-card" style={{ padding: '2rem', background: 'var(--neo-card-bg)' }}>
+            <h3 className="font-display" style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '1.5rem', borderBottom: '3px solid #000000', paddingBottom: '1rem', color: 'var(--neo-text)' }}>
+              Daftar Petugas Terdaftar ({users.length})
+            </h3>
 
-          {successMsg && (
-            <div className="neo-card-mint" style={{ padding: '10px 14px', fontSize: '0.85rem', fontWeight: 800, marginBottom: '1rem', color: '#000000' }}>
-              {successMsg}
-            </div>
-          )}
+            {usersLoading ? (
+              <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--neo-text-muted)', fontWeight: 700 }} className="font-display">
+                Memuat user...
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem', color: 'var(--neo-text)' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '3px solid #000000', background: 'var(--neo-bg)' }}>
+                      <th className="font-display" style={{ padding: '10px 12px', fontWeight: 800 }}>User / Nama</th>
+                      <th className="font-display" style={{ padding: '10px 12px', fontWeight: 800 }}>Role</th>
+                      <th className="font-display" style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800 }}>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((u) => {
+                      const isSuper = u.role === RoleUser.SUPER_ADMIN;
+                      const badgeClass = isSuper ? 'neo-badge-yellow' : u.role === RoleUser.PEMBINA ? 'neo-badge-purple' : 'neo-badge-mint';
 
-          <form onSubmit={handleCreateUser}>
-            <div style={{ marginBottom: '1rem' }}>
-              <label className="font-display" style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '4px', color: 'var(--neo-text)' }}>
-                Username (lowercase & angka)
-              </label>
-              <input
-                type="text"
-                required
-                value={username}
-                onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                placeholder="misal: mpk_ketua"
-                className="neo-input"
-                style={{ padding: '8px 12px', fontSize: '0.9rem' }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '1rem' }}>
-              <label className="font-display" style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '4px', color: 'var(--neo-text)' }}>
-                Nama Lengkap Petugas
-              </label>
-              <input
-                type="text"
-                required
-                value={namaLengkap}
-                onChange={(e) => setNamaLengkap(e.target.value)}
-                placeholder="misal: Taruna M. Rizky"
-                className="neo-input"
-                style={{ padding: '8px 12px', fontSize: '0.9rem' }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '1rem' }}>
-              <label className="font-display" style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '4px', color: 'var(--neo-text)' }}>
-                Email Resmi Notifikasi
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="misal: mpk@sman2tb.sch.id"
-                className="neo-input"
-                style={{ padding: '8px 12px', fontSize: '0.9rem' }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '1rem' }}>
-              <label className="font-display" style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '4px', color: 'var(--neo-text)' }}>
-                Password (min 8 char, KAPITAL & angka)
-              </label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="misal: Aparat2026!"
-                className="neo-input"
-                style={{ padding: '8px 12px', fontSize: '0.9rem' }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label className="font-display" style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '4px', color: 'var(--neo-text)' }}>
-                Role Hak Akses
-              </label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as RoleUser)}
-                className="neo-input"
-                style={{ padding: '8px 12px', fontSize: '0.9rem' }}
-              >
-                <option value={RoleUser.MPK}>MPK (Moderator Laporan)</option>
-                <option value={RoleUser.PEMBINA}>PEMBINA (Pengasuh Asrama)</option>
-              </select>
-            </div>
-
-            <button type="submit" disabled={formLoading} className="neo-btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px' }}>
-              <span>{formLoading ? 'Membuat...' : 'Buat Akun Sekarang'}</span>
-            </button>
-          </form>
+                      return (
+                        <tr key={u.id} style={{ borderBottom: '2px solid rgba(150, 150, 150, 0.2)' }}>
+                          <td style={{ padding: '12px' }}>
+                            <strong className="font-mono" style={{ color: 'var(--neo-text)', display: 'block' }}>@{u.username}</strong>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--neo-text-muted)', fontWeight: 600 }}>{u.namaLengkap}</span>
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            <span className={`neo-badge ${badgeClass}`} style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
+                              {ROLE_LABELS[u.role]}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px', textAlign: 'right' }}>
+                            {!isSuper && (
+                              <button
+                                onClick={() => handleDeleteUser(u.id, u.username)}
+                                style={{ background: 'none', border: 'none', color: '#ff3b5c', cursor: 'pointer', padding: '4px' }}
+                                title="Hapus Akun"
+                              >
+                                <Trash2 size={18} strokeWidth={2.5} />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
+      )}
 
-        {/* Tabel Daftar User */}
-        <div className="neo-card" style={{ padding: '2rem', background: 'var(--neo-card-bg)' }}>
-          <h3 className="font-display" style={{ fontSize: '1.25rem', fontWeight: 900, marginBottom: '1.5rem', borderBottom: '3px solid #000000', paddingBottom: '1rem', color: 'var(--neo-text)' }}>
-            Daftar Petugas Terdaftar ({users.length})
-          </h3>
+      {/* TAB 2: MONITORING LAPORAN & FOTO BUKTI */}
+      {activeTab === 'laporan' && (
+        <div>
+          {/* Filter Bar */}
+          <div className="neo-card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.75rem', background: 'var(--neo-card-bg)', display: 'flex', gap: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--neo-text)', fontSize: '0.95rem', fontWeight: 800 }} className="font-display">
+              <Filter size={20} strokeWidth={2.5} color="var(--neo-text)" />
+              <span>Filter Monitoring:</span>
+            </div>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="neo-input"
+              style={{ width: 'auto', minWidth: '160px', padding: '8px 12px', fontSize: '0.9rem' }}
+            >
+              <option value="">Semua Status Laporan</option>
+              {Object.keys(StatusLaporan).map((st) => (
+                <option key={st} value={st}>{STATUS_LABELS[st as StatusLaporan]}</option>
+              ))}
+            </select>
+            <select
+              value={filterKategori}
+              onChange={(e) => setFilterKategori(e.target.value)}
+              className="neo-input"
+              style={{ width: 'auto', minWidth: '160px', padding: '8px 12px', fontSize: '0.9rem' }}
+            >
+              <option value="">Semua Kategori</option>
+              {Object.keys(KategoriLaporan).map((kat) => (
+                <option key={kat} value={kat}>{KATEGORI_LABELS[kat as KategoriLaporan]}</option>
+              ))}
+            </select>
+            <select
+              value={filterStatusMatriks}
+              onChange={(e) => setFilterStatusMatriks(e.target.value)}
+              className="neo-input"
+              style={{ width: 'auto', minWidth: '170px', padding: '8px 12px', fontSize: '0.9rem' }}
+            >
+              <option value="">Semua Status Matriks</option>
+              {Object.keys(StatusMatriks).map((sm) => (
+                <option key={sm} value={sm}>{STATUS_MATRIKS_LABELS[sm as StatusMatriks]}</option>
+              ))}
+              <option value="BELUM_DINILAI">⚪ Belum Dinilai</option>
+            </select>
+          </div>
 
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--neo-text-muted)', fontWeight: 700 }} className="font-display">Memuat user...</div>
+          {/* Table Data Laporan */}
+          {laporanLoading ? (
+            <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--neo-text-muted)', fontWeight: 700 }} className="font-display">
+              ⏳ Memuat data laporan & lampiran foto...
+            </div>
+          ) : laporanError ? (
+            <div className="neo-card-pink" style={{ padding: '1.5rem', textAlign: 'center', fontWeight: 800 }}>{laporanError}</div>
+          ) : laporanList.length === 0 ? (
+            <div className="neo-card font-display" style={{ padding: '3rem', textAlign: 'center', color: 'var(--neo-text-muted)', background: 'var(--neo-card-bg)', fontWeight: 700 }}>
+              Belum ada laporan yang sesuai dengan filter saat ini.
+            </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem', color: 'var(--neo-text)' }}>
+            <div className="neo-card" style={{ overflowX: 'auto', background: 'var(--neo-card-bg)' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.925rem', color: 'var(--neo-text)' }}>
                 <thead>
                   <tr style={{ borderBottom: '3px solid #000000', background: 'var(--neo-bg)' }}>
-                    <th className="font-display" style={{ padding: '10px 12px', fontWeight: 800 }}>User / Nama</th>
-                    <th className="font-display" style={{ padding: '10px 12px', fontWeight: 800 }}>Role</th>
-                    <th className="font-display" style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800 }}>Aksi</th>
+                    <th className="font-display" style={{ padding: '16px 18px', fontWeight: 800 }}>Kode Tracking</th>
+                    <th className="font-display" style={{ padding: '16px 18px', fontWeight: 800 }}>Kategori</th>
+                    <th className="font-display" style={{ padding: '16px 18px', fontWeight: 800 }}>Tanggal</th>
+                    <th className="font-display" style={{ padding: '16px 18px', fontWeight: 800 }}>Status</th>
+                    <th className="font-display" style={{ padding: '16px 18px', fontWeight: 800 }}>Matriks Pleno</th>
+                    <th className="font-display" style={{ padding: '16px 18px', fontWeight: 800 }}>Foto Bukti</th>
+                    <th className="font-display" style={{ padding: '16px 18px', textAlign: 'right', fontWeight: 800 }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((u) => {
-                    const isSuper = u.role === RoleUser.SUPER_ADMIN;
-                    const badgeClass = isSuper ? 'neo-badge-yellow' : u.role === RoleUser.PEMBINA ? 'neo-badge-purple' : 'neo-badge-mint';
-
+                  {laporanList.map((item) => {
+                    const isBully = item.kategori === KategoriLaporan.PERUNDUNGAN;
                     return (
-                      <tr key={u.id} style={{ borderBottom: '2px solid rgba(150, 150, 150, 0.2)' }}>
-                        <td style={{ padding: '12px' }}>
-                          <strong className="font-mono" style={{ color: 'var(--neo-text)', display: 'block' }}>@{u.username}</strong>
-                          <span style={{ fontSize: '0.8rem', color: 'var(--neo-text-muted)', fontWeight: 600 }}>{u.namaLengkap}</span>
+                      <tr
+                        key={item.id}
+                        style={{
+                          borderBottom: '2px solid rgba(150, 150, 150, 0.2)',
+                          background: isBully ? 'rgba(255, 59, 92, 0.18)' : 'transparent',
+                        }}
+                      >
+                        <td className="font-mono" style={{ padding: '16px 18px', fontWeight: 900, color: 'var(--neo-text)' }}>
+                          {item.kodeTracking}
                         </td>
-                        <td style={{ padding: '12px' }}>
-                          <span className={`neo-badge ${badgeClass}`} style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
-                            {ROLE_LABELS[u.role]}
+                        <td style={{ padding: '16px 18px' }}>
+                          <span style={{ color: isBully ? 'var(--neo-pink)' : 'var(--neo-text)', fontWeight: isBully ? 800 : 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            {isBully && <AlertTriangle size={16} strokeWidth={2.5} color="var(--neo-pink)" />}
+                            {KATEGORI_LABELS[item.kategori]}
                           </span>
                         </td>
-                        <td style={{ padding: '12px', textAlign: 'right' }}>
-                          {!isSuper && (
-                            <button
-                              onClick={() => handleDeleteUser(u.id, u.username)}
-                              style={{ background: 'none', border: 'none', color: '#ff3b5c', cursor: 'pointer', padding: '4px' }}
-                              title="Hapus Akun"
-                            >
-                              <Trash2 size={18} strokeWidth={2.5} />
-                            </button>
+                        <td style={{ padding: '16px 18px', color: 'var(--neo-text-muted)', fontWeight: 600 }}>
+                          {new Date(item.createdAt).toLocaleDateString('id-ID')}
+                        </td>
+                        <td style={{ padding: '16px 18px' }}>
+                          {getStatusBadge(item.status)}
+                        </td>
+                        <td style={{ padding: '16px 18px' }}>
+                          {getMatriksBadge(item.statusMatriks)}
+                        </td>
+                        <td style={{ padding: '16px 18px', color: 'var(--neo-text-muted)' }}>
+                          {item._count && item._count.lampiran > 0 ? (
+                            <span className="neo-badge neo-badge-mint" style={{ fontSize: '0.75rem' }}>
+                              <ImageIcon size={14} strokeWidth={2.5} /> {item._count.lampiran} foto bukti
+                            </span>
+                          ) : (
+                            '-'
                           )}
+                        </td>
+                        <td style={{ padding: '16px 18px', textAlign: 'right' }}>
+                          <button
+                            onClick={() => openDetailLaporan(item.id)}
+                            className="neo-btn-primary"
+                            style={{ padding: '8px 14px', fontSize: '0.85rem' }}
+                          >
+                            <Eye size={16} strokeWidth={2.5} />
+                            <span>Lihat Laporan & Bukti</span>
+                          </button>
                         </td>
                       </tr>
                     );
@@ -267,7 +575,113 @@ export const DashboardAdmin: React.FC = () => {
             </div>
           )}
         </div>
-      </div>
+      )}
+
+      {/* Modal Detail Laporan & Bukti Foto untuk Super Admin */}
+      {selectedLaporanId && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}>
+          <div className="neo-card animate-neo-pop" style={{ maxWidth: '820px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '2.5rem', background: 'var(--neo-card-bg)', boxShadow: '8px 8px 0px 0px #00f0ff' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.75rem', borderBottom: '3px solid #000000', paddingBottom: '1.25rem', gap: '1rem' }}>
+              <div>
+                <span className="font-mono" style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--neo-text)' }}>
+                  {detailLaporan?.kodeTracking}
+                </span>
+                <p style={{ fontSize: '0.9rem', color: 'var(--neo-text-muted)', marginTop: '2px', fontWeight: 600 }}>
+                  Kategori: <strong style={{ color: 'var(--neo-text)' }}>{detailLaporan ? KATEGORI_LABELS[detailLaporan.kategori] : ''}</strong>
+                </p>
+              </div>
+              <button onClick={() => setSelectedLaporanId(null)} className="neo-btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
+                Tutup
+              </button>
+            </div>
+
+            {detailLoading ? (
+              <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--neo-text-muted)', fontWeight: 700 }} className="font-display">
+                🔓 Mendekripsi konten & memuat presigned URL foto...
+              </div>
+            ) : detailLaporan ? (
+              <div>
+                {/* Status & Info Badge */}
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
+                  <span className="font-display" style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--neo-text)' }}>
+                    Status Saat Ini:
+                  </span>
+                  {getStatusBadge(detailLaporan.status)}
+                  {getMatriksBadge(detailLaporan.statusMatriks)}
+                </div>
+
+                {/* Decrypted Content Box */}
+                <div style={{ marginBottom: '1.75rem' }}>
+                  <h4 className="font-display" style={{ fontSize: '0.95rem', color: 'var(--neo-text-muted)', marginBottom: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 800 }}>
+                    Isi Laporan Masuk
+                  </h4>
+                  <div
+                    className="neo-card-white"
+                    style={{
+                      padding: '1.5rem',
+                      fontSize: '1rem',
+                      lineHeight: 1.6,
+                      whiteSpace: 'pre-wrap',
+                      fontWeight: 600,
+                      boxShadow: '5px 5px 0px 0px #00f0ff',
+                      background: 'var(--neo-bg)',
+                    }}
+                  >
+                    {detailLaporan.konten}
+                  </div>
+                </div>
+
+                {/* Foto Lampiran Bukti */}
+                <div style={{ marginBottom: '1.75rem' }}>
+                  <h4 className="font-display" style={{ fontSize: '0.95rem', color: 'var(--neo-text-muted)', marginBottom: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 800 }}>
+                    Foto Bukti Lampiran ({detailLaporan.lampiran.length})
+                  </h4>
+                  {detailLaporan.lampiran.length === 0 ? (
+                    <div className="neo-card" style={{ padding: '14px 18px', background: 'var(--neo-bg)', fontSize: '0.875rem', color: 'var(--neo-text-muted)', fontStyle: 'italic', fontWeight: 600 }}>
+                      Tidak ada foto bukti yang dilampirkan oleh pelapor pada laporan ini.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                      {detailLaporan.lampiran.map((foto, idx) => (
+                        <a
+                          key={idx}
+                          href={foto.downloadUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="neo-btn-primary"
+                          style={{ padding: '10px 16px', fontSize: '0.85rem' }}
+                        >
+                          <ImageIcon size={18} strokeWidth={2.5} />
+                          <span>Buka Foto Bukti {idx + 1} ({Math.round(foto.fileSizeBytes / 1024)} KB)</span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Catatan Tindak Lanjut MPK/Pembina */}
+                {detailLaporan.catatan && detailLaporan.catatan.length > 0 && (
+                  <div style={{ marginBottom: '1.75rem' }}>
+                    <h4 className="font-display" style={{ fontSize: '0.95rem', color: 'var(--neo-text-muted)', marginBottom: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 800 }}>
+                      Log Catatan Tindak Lanjut Petugas
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {detailLaporan.catatan.map((c) => (
+                        <div key={c.id} className="neo-card" style={{ padding: '12px 16px', background: 'var(--neo-bg)' }}>
+                          <p style={{ color: 'var(--neo-text)', fontWeight: 600, fontSize: '0.9rem', marginBottom: '4px' }}>{c.catatan}</p>
+                          <span className="font-mono" style={{ fontSize: '0.78rem', color: 'var(--neo-text-muted)' }}>
+                            Oleh: <strong>{c.author.namaLengkap}</strong> ({ROLE_LABELS[c.author.role]}) - {new Date(c.createdAt).toLocaleString('id-ID')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       {/* Modal QR Code Poster (Printable Light Neo-Brutalist) */}
       {showQrModal && (
