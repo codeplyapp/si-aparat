@@ -164,15 +164,29 @@ export interface LaporanDetailMPK extends LaporanItemMPK {
   }>;
 }
 
+export interface MPKStats {
+  total: number;
+  baru: number;
+  perundungan: number;
+}
+
 export async function getLaporanListMPK(filters?: {
   status?: string;
   kategori?: string;
   statusMatriks?: string;
-}): Promise<{ data: LaporanItemMPK[]; pagination: { total: number } }> {
+  page?: number;
+  limit?: number;
+}): Promise<{
+  data: LaporanItemMPK[];
+  pagination: { total: number; page: number; limit: number };
+  stats: MPKStats;
+}> {
   const params = new URLSearchParams();
   if (filters?.status) params.set('status', filters.status);
   if (filters?.kategori) params.set('kategori', filters.kategori);
   if (filters?.statusMatriks) params.set('statusMatriks', filters.statusMatriks);
+  if (filters?.page) params.set('page', String(filters.page));
+  if (filters?.limit) params.set('limit', String(filters.limit));
   const query = params.toString();
   const res = await fetch(`${API_BASE}/mpk/laporan?${query}`, {
     headers: getAuthHeader(),

@@ -89,6 +89,7 @@ export interface UpdateMatriksRequest {
   skorDampak?: number | null;
   skorKelayakan?: number | null;
   isMelanggarAturan?: boolean;
+  statusMatriks?: StatusMatriks | null;
   catatanTindakLanjut?: string | null;
 }
 
@@ -148,12 +149,11 @@ export interface HitungStatusMatriksParams {
  * Logika evaluasi Status Final Matriks Pleno MPK (first-match wins):
  * 1. Melanggar aturan -> ARSIP
  * 2. Kategori PERUNDUNGAN -> PRIORITAS_UTAMA (selalu eskalasi)
- * 3. Kategori KEGIATAN -> DELEGASI_OSIS
- * 4. Skor lengkap (1-4):
+ * 3. Skor lengkap (1-4):
  *    - Dampak >= 3 & Kelayakan >= 3 -> PRIORITAS_UTAMA
  *    - Dampak >= 3 & Kelayakan <= 2 -> ADVOKASI
  *    - Dampak <= 2 -> ARSIP
- * 5. Belum dinilai -> null
+ * 4. Belum dinilai -> null
  */
 export function hitungStatusMatriks(params: HitungStatusMatriksParams): StatusMatriks | null {
   if (params.isMelanggarAturan) {
@@ -162,10 +162,6 @@ export function hitungStatusMatriks(params: HitungStatusMatriksParams): StatusMa
 
   if (params.kategori === KategoriLaporan.PERUNDUNGAN) {
     return StatusMatriks.PRIORITAS_UTAMA;
-  }
-
-  if (params.kategori === KategoriLaporan.KEGIATAN) {
-    return StatusMatriks.DELEGASI_OSIS;
   }
 
   const d = params.skorDampak;

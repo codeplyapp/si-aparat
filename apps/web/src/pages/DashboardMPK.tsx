@@ -42,6 +42,11 @@ import {
 export const DashboardMPK: React.FC = () => {
   const navigate = useNavigate();
   const [laporanList, setLaporanList] = useState<LaporanItemMPK[]>([]);
+  const [mpkStats, setMpkStats] = useState<{ total: number; baru: number; perundungan: number }>({
+    total: 0,
+    baru: 0,
+    perundungan: 0,
+  });
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [exportLoading, setExportLoading] = useState<boolean>(false);
@@ -60,6 +65,8 @@ export const DashboardMPK: React.FC = () => {
   const [skorDampak, setSkorDampak] = useState<number | null>(null);
   const [skorKelayakan, setSkorKelayakan] = useState<number | null>(null);
   const [isMelanggarAturan, setIsMelanggarAturan] = useState<boolean>(false);
+  const [statusMatriksManual, setStatusMatriksManual] = useState<StatusMatriks | null>(null);
+  const [isManualOverride, setIsManualOverride] = useState<boolean>(false);
   const [catatanTindakLanjut, setCatatanTindakLanjut] = useState<string>('');
   const [matriksLoading, setMatriksLoading] = useState<boolean>(false);
 
@@ -75,8 +82,12 @@ export const DashboardMPK: React.FC = () => {
         status: filterStatus || undefined,
         kategori: filterKategori || undefined,
         statusMatriks: filterStatusMatriks || undefined,
+        limit: 100,
       });
       setLaporanList(res.data);
+      if (res.stats) {
+        setMpkStats(res.stats);
+      }
     } catch (err) {
       if (err instanceof ApiError) setErrorMsg(err.message);
       else setErrorMsg('Gagal memuat daftar laporan');
@@ -99,6 +110,8 @@ export const DashboardMPK: React.FC = () => {
       setSkorDampak(data.skorDampak !== null && data.skorDampak !== undefined ? data.skorDampak : null);
       setSkorKelayakan(data.skorKelayakan !== null && data.skorKelayakan !== undefined ? data.skorKelayakan : null);
       setIsMelanggarAturan(Boolean(data.isMelanggarAturan));
+      setStatusMatriksManual(data.statusMatriks || null);
+      setIsManualOverride(Boolean(data.statusMatriks));
       setCatatanTindakLanjut(data.catatanTindakLanjut || '');
 
       if (data.balasan) setPesanBalasan(data.balasan.pesan);
@@ -124,6 +137,22 @@ export const DashboardMPK: React.FC = () => {
     }
   };
 
+  // Live status matriks calculation for modal preview
+  const computedFromScore = detail
+    ? hitungStatusMatriks({
+        kategori: detail.kategori,
+        isMelanggarAturan,
+        skorDampak,
+        skorKelayakan,
+      })
+    : null;
+
+  const currentFinalStatus: StatusMatriks | null = isMelanggarAturan
+    ? StatusMatriks.ARSIP
+    : isManualOverride
+      ? statusMatriksManual
+      : (computedFromScore || statusMatriksManual);
+
   const handleSaveMatriks = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedId) return;
@@ -134,6 +163,7 @@ export const DashboardMPK: React.FC = () => {
         skorDampak,
         skorKelayakan,
         isMelanggarAturan,
+        statusMatriks: currentFinalStatus,
         catatanTindakLanjut: catatanTindakLanjut.trim() || null,
       });
       await openDetail(selectedId);
@@ -203,10 +233,6 @@ export const DashboardMPK: React.FC = () => {
     navigate('/login');
   };
 
-  // Stats Counters
-  const countBaru = laporanList.filter((l) => l.status === StatusLaporan.BARU).length;
-  const countPerundungan = laporanList.filter((l) => l.kategori === KategoriLaporan.PERUNDUNGAN).length;
-
   const getStatusBadge = (status: StatusLaporan) => {
     const classMap: Record<StatusLaporan, string> = {
       [StatusLaporan.BARU]: 'neo-badge-yellow',
@@ -243,16 +269,6 @@ export const DashboardMPK: React.FC = () => {
     return <span className={`neo-badge ${classMap[status]}`}>{STATUS_MATRIKS_LABELS[status]}</span>;
   };
 
-  // Live status matriks calculation for modal preview
-  const liveStatusMatriks = detail
-    ? hitungStatusMatriks({
-        kategori: detail.kategori,
-        isMelanggarAturan,
-        skorDampak,
-        skorKelayakan,
-      })
-    : null;
-
   return (
     <div style={{ maxWidth: '1150px', margin: '0 auto', padding: '0 1rem' }} className="animate-neo-pop">
       {/* Top Header */}
@@ -281,22 +297,22 @@ export const DashboardMPK: React.FC = () => {
         </div>
       </div>
 
-      {/* Summary Cards (Neo-Brutalist Light Metrics) */}
+      {/* Summary Cards (Synchronized with Database Totals) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
         <div className="neo-card-yellow" style={{ padding: '1.5rem' }}>
           <p className="font-display" style={{ fontSize: '0.9rem', fontWeight: 800, color: '#000000' }}>BELUM DITINJAU</p>
-          <h2 className="font-mono" style={{ fontSize: '2.5rem', fontWeight: 900, marginTop: '4px', color: '#000000' }}>{countBaru}</h2>
+          <h2 className="font-mono" style={{ fontSize: '2.5rem', fontWeight: 900, marginTop: '4px', color: '#000000' }}>{mpkStats.baru}</h2>
         </div>
         <div className="neo-card-pink" style={{ padding: '1.5rem', boxShadow: '5px 5px 0px 0px #000000' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#ffffff' }}>
             <ShieldAlert size={20} strokeWidth={2.5} />
             <p className="font-display" style={{ fontSize: '0.9rem', fontWeight: 900 }}>LAPORAN PEMBULLYAN</p>
           </div>
-          <h2 className="font-mono" style={{ fontSize: '2.5rem', fontWeight: 900, marginTop: '4px', color: '#ffffff' }}>{countPerundungan}</h2>
+          <h2 className="font-mono" style={{ fontSize: '2.5rem', fontWeight: 900, marginTop: '4px', color: '#ffffff' }}>{mpkStats.perundungan}</h2>
         </div>
         <div className="neo-card-mint" style={{ padding: '1.5rem' }}>
           <p className="font-display" style={{ fontSize: '0.9rem', fontWeight: 800, color: '#000000' }}>TOTAL LAPORAN MASUK</p>
-          <h2 className="font-mono" style={{ fontSize: '2.5rem', fontWeight: 900, marginTop: '4px', color: '#000000' }}>{laporanList.length}</h2>
+          <h2 className="font-mono" style={{ fontSize: '2.5rem', fontWeight: 900, marginTop: '4px', color: '#000000' }}>{mpkStats.total}</h2>
         </div>
       </div>
 
@@ -544,23 +560,11 @@ export const DashboardMPK: React.FC = () => {
                     </div>
                     <div>
                       <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--neo-text-muted)', marginRight: '6px' }}>
-                        Preview Status:
+                        Status Terpilih:
                       </span>
-                      {getMatriksBadge(liveStatusMatriks)}
+                      {getMatriksBadge(currentFinalStatus)}
                     </div>
                   </div>
-
-                  {/* Kategori Note Alert */}
-                  {detail.kategori === KategoriLaporan.PERUNDUNGAN && (
-                    <div className="neo-card-pink" style={{ padding: '10px 14px', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 700 }}>
-                      ⚠️ <strong>Kategori Perundungan:</strong> Otomatis masuk status 🟢 <strong>Prioritas Utama</strong> untuk eskalasi segera (SLA 1x24 jam).
-                    </div>
-                  )}
-                  {detail.kategori === KategoriLaporan.KEGIATAN && (
-                    <div className="neo-card-mint" style={{ padding: '10px 14px', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 700, color: '#000000' }}>
-                      ℹ️ <strong>Kategori Kegiatan:</strong> Otomatis masuk status 🔵 <strong>Delegasi OSIS</strong> untuk ditindaklanjuti pengurus harian.
-                    </div>
-                  )}
 
                   <form onSubmit={handleSaveMatriks}>
                     {/* Checkbox Melanggar Aturan */}
@@ -584,7 +588,10 @@ export const DashboardMPK: React.FC = () => {
                         </label>
                         <select
                           value={skorDampak !== null ? skorDampak : ''}
-                          onChange={(e) => setSkorDampak(e.target.value ? Number(e.target.value) : null)}
+                          onChange={(e) => {
+                            const val = e.target.value ? Number(e.target.value) : null;
+                            setSkorDampak(val);
+                          }}
                           className="neo-input"
                           style={{ fontSize: '0.875rem', padding: '10px 12px' }}
                         >
@@ -601,7 +608,10 @@ export const DashboardMPK: React.FC = () => {
                         </label>
                         <select
                           value={skorKelayakan !== null ? skorKelayakan : ''}
-                          onChange={(e) => setSkorKelayakan(e.target.value ? Number(e.target.value) : null)}
+                          onChange={(e) => {
+                            const val = e.target.value ? Number(e.target.value) : null;
+                            setSkorKelayakan(val);
+                          }}
                           className="neo-input"
                           style={{ fontSize: '0.875rem', padding: '10px 12px' }}
                         >
@@ -610,6 +620,56 @@ export const DashboardMPK: React.FC = () => {
                             <option key={s} value={s}>{SKOR_KELAYAKAN_LABELS[s]}</option>
                           ))}
                         </select>
+                      </div>
+                    </div>
+
+                    {/* Status Matriks Manual Selection */}
+                    <div style={{ marginBottom: '1.25rem' }}>
+                      <label className="font-display" style={{ display: 'block', fontWeight: 800, fontSize: '0.875rem', marginBottom: '8px', color: 'var(--neo-text)' }}>
+                        3. Status Matriks Final:
+                      </label>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        {(Object.keys(StatusMatriks) as Array<keyof typeof StatusMatriks>).map((key) => {
+                          const val = StatusMatriks[key];
+                          const isSelected = currentFinalStatus === val;
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => {
+                                setIsManualOverride(true);
+                                setStatusMatriksManual(val);
+                              }}
+                              className="font-display"
+                              style={{
+                                padding: '8px 14px',
+                                borderRadius: '8px',
+                                border: isSelected ? '3px solid #000000' : '2px solid rgba(150, 150, 150, 0.4)',
+                                background: isSelected ? '#ffe600' : 'var(--neo-bg)',
+                                color: '#000000',
+                                fontSize: '0.825rem',
+                                cursor: 'pointer',
+                                fontWeight: isSelected ? 900 : 700,
+                                boxShadow: isSelected ? '3px 3px 0px 0px #000000' : 'none',
+                              }}
+                            >
+                              {STATUS_MATRIKS_LABELS[val]}
+                            </button>
+                          );
+                        })}
+                        {isManualOverride && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsManualOverride(false);
+                              setStatusMatriksManual(null);
+                            }}
+                            className="neo-btn-secondary"
+                            style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                          >
+                            ↺ Hitung Otomatis dari Skor
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -622,7 +682,7 @@ export const DashboardMPK: React.FC = () => {
                         rows={3}
                         value={catatanTindakLanjut}
                         onChange={(e) => setCatatanTindakLanjut(e.target.value)}
-                        placeholder="Contoh: Diajukan pada rapat komisi Sarpras minggu ke-3 / Diteruskan ke Seksi 4 OSIS..."
+                        placeholder="Contoh: Didelegasikan ke Seksi 4 OSIS untuk koordinasi kepanitiaan / Diajukan ke komisi Sarpras..."
                         className="neo-input"
                         style={{ minHeight: '80px', fontSize: '0.9rem' }}
                       />

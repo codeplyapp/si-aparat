@@ -65,15 +65,9 @@ describe('Matriks Tabulasi & Penilaian Aspirasi — hitungStatusMatriks', () => 
     });
   });
 
-  describe('Presedensi Aturan 3: Kategori KEGIATAN -> DELEGASI_OSIS', () => {
-    it('mengembalikan DELEGASI_OSIS untuk KEGIATAN tanpa melihat skor', () => {
-      expect(
-        hitungStatusMatriks({
-          kategori: KategoriLaporan.KEGIATAN,
-          isMelanggarAturan: false,
-        }),
-      ).toBe(StatusMatriks.DELEGASI_OSIS);
-
+  describe('Penilaian Kategori KEGIATAN & Kategori Umum Berdasarkan Skor', () => {
+    it('kategori KEGIATAN mengikuti penilaian skor Dampak & Kelayakan (bukan auto delegasi)', () => {
+      // D=4, K=4 pada KEGIATAN -> PRIORITAS_UTAMA
       expect(
         hitungStatusMatriks({
           kategori: KategoriLaporan.KEGIATAN,
@@ -81,7 +75,35 @@ describe('Matriks Tabulasi & Penilaian Aspirasi — hitungStatusMatriks', () => 
           skorDampak: 4,
           skorKelayakan: 4,
         }),
-      ).toBe(StatusMatriks.DELEGASI_OSIS);
+      ).toBe(StatusMatriks.PRIORITAS_UTAMA);
+
+      // D=3, K=1 pada KEGIATAN -> ADVOKASI
+      expect(
+        hitungStatusMatriks({
+          kategori: KategoriLaporan.KEGIATAN,
+          isMelanggarAturan: false,
+          skorDampak: 3,
+          skorKelayakan: 1,
+        }),
+      ).toBe(StatusMatriks.ADVOKASI);
+
+      // D=2, K=4 pada KEGIATAN -> ARSIP
+      expect(
+        hitungStatusMatriks({
+          kategori: KategoriLaporan.KEGIATAN,
+          isMelanggarAturan: false,
+          skorDampak: 2,
+          skorKelayakan: 4,
+        }),
+      ).toBe(StatusMatriks.ARSIP);
+
+      // Belum dinilai -> null
+      expect(
+        hitungStatusMatriks({
+          kategori: KategoriLaporan.KEGIATAN,
+          isMelanggarAturan: false,
+        }),
+      ).toBeNull();
     });
   });
 

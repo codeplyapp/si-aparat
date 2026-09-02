@@ -28,6 +28,7 @@ const updateMatriksSchema = z.object({
   skorDampak: z.number().int().min(1).max(4).nullable().optional(),
   skorKelayakan: z.number().int().min(1).max(4).nullable().optional(),
   isMelanggarAturan: z.boolean().optional(),
+  statusMatriks: z.nativeEnum(StatusMatriks).nullable().optional(),
   catatanTindakLanjut: z.string().max(2000).nullable().optional(),
 });
 
@@ -41,7 +42,7 @@ export async function mpkRoutes(fastify: FastifyInstance) {
 
   // ─── GET /api/v1/mpk/laporan ──────────────────────────────────────
   fastify.get('/laporan', async (_request: FastifyRequest, reply: FastifyReply) => {
-    const { status, kategori, statusMatriks, page = '1', limit = '20' } = _request.query as Record<string, string>;
+    const { status, kategori, statusMatriks, page = '1', limit = '100' } = _request.query as Record<string, string>;
 
     const where: Record<string, unknown> = {};
     if (status && status !== 'undefined') where.status = status;
@@ -56,7 +57,7 @@ export async function mpkRoutes(fastify: FastifyInstance) {
 
     const skip = (Number(page) - 1) * Number(limit);
 
-    const [laporan, total] = await Promise.all([
+    const [laporan, totalFiltered, totalAll, baruAll, perundunganAll] = await Promise.all([
       prisma.laporan.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -80,11 +81,19 @@ export async function mpkRoutes(fastify: FastifyInstance) {
         },
       }),
       prisma.laporan.count({ where }),
+      prisma.laporan.count(),
+      prisma.laporan.count({ where: { status: StatusLaporan.BARU } }),
+      prisma.laporan.count({ where: { kategori: KategoriLaporan.PERUNDUNGAN } }),
     ]);
 
     return reply.send({
       data: laporan,
-      pagination: { total, page: Number(page), limit: Number(limit) },
+      pagination: { total: totalFiltered, page: Number(page), limit: Number(limit) },
+      stats: {
+        total: totalAll,
+        baru: baruAll,
+        perundungan: perundunganAll,
+      },
     });
   });
 
@@ -264,12 +273,19 @@ export async function mpkRoutes(fastify: FastifyInstance) {
       const skorKelayakan = parsed.data.skorKelayakan ?? null;
       const catatanTindakLanjut = parsed.data.catatanTindakLanjut ?? null;
 
-      const statusMatriks = hitungStatusMatriks({
-        kategori: existing.kategori as KategoriLaporan,
-        isMelanggarAturan,
-        skorDampak,
-        skorKelayakan,
-      });
+      let statusMatriks: StatusMatriks | null = null;
+      if (isMelanggarAturan) {
+        statusMatriks = StatusMatriks.ARSIP;
+      } else if (parsed.data.statusMatriks !== undefined) {
+        statusMatriks = parsed.data.statusMatriks;
+      } else {
+        statusMatriks = hitungStatusMatriks({
+          kategori: existing.kategori as KategoriLaporan,
+          isMelanggarAturan,
+          skorDampak,
+          skorKelayakan,
+        });
+      }
 
       const updated = await prisma.laporan.update({
         where: { id: request.params.id },
