@@ -78,6 +78,23 @@ export async function getPresignedDownloadUrl(key: string): Promise<string> {
 }
 
 /**
+ * Download Buffer terenkripsi dari Supabase Storage
+ */
+export async function downloadEncryptedFile(key: string): Promise<Buffer> {
+  const supabase = getSupabaseClient();
+  const bucket = getBucketName();
+
+  const { data, error } = await supabase.storage.from(bucket).download(key);
+
+  if (error || !data) {
+    throw new Error(`Failed to download from Supabase Storage: ${error?.message}`);
+  }
+
+  const arrayBuffer = await data.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
+/**
  * Hapus file dari Supabase Storage
  */
 export async function deleteFile(key: string): Promise<void> {

@@ -197,6 +197,14 @@ export async function getLaporanListMPK(filters?: {
   return data;
 }
 
+export function getFullFotoUrl(url: string): string {
+  const token = localStorage.getItem('token');
+  if (!url) return '';
+  if (url.startsWith('http')) return url;
+  const baseUrl = API_BASE.replace(/\/api\/v1\/?$/, '');
+  return `${baseUrl}${url}?token=${encodeURIComponent(token || '')}`;
+}
+
 export async function getLaporanDetailMPK(id: string): Promise<LaporanDetailMPK> {
   const res = await fetch(`${API_BASE}/mpk/laporan/${id}`, {
     headers: getAuthHeader(),
@@ -204,6 +212,14 @@ export async function getLaporanDetailMPK(id: string): Promise<LaporanDetailMPK>
 
   const data = await res.json();
   if (!res.ok) throw new ApiError(data.message || 'Gagal mengambil detail', res.status);
+
+  if (data.lampiran && Array.isArray(data.lampiran)) {
+    data.lampiran = data.lampiran.map((f: any) => ({
+      ...f,
+      downloadUrl: getFullFotoUrl(f.downloadUrl),
+    }));
+  }
+
   return data;
 }
 
@@ -346,6 +362,14 @@ export async function getLaporanDetailPembina(id: string): Promise<LaporanDetail
 
   const data = await res.json();
   if (!res.ok) throw new ApiError(data.message || 'Gagal mengambil detail', res.status);
+
+  if (data.lampiran && Array.isArray(data.lampiran)) {
+    data.lampiran = data.lampiran.map((f: any) => ({
+      ...f,
+      downloadUrl: getFullFotoUrl(f.downloadUrl),
+    }));
+  }
+
   return data;
 }
 

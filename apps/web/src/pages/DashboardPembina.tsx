@@ -240,14 +240,30 @@ export const DashboardPembina: React.FC = () => {
                 {detail.lampiran && detail.lampiran.length > 0 && (
                   <div style={{ marginBottom: '1.75rem' }}>
                     <h4 className="font-display" style={{ fontSize: '0.95rem', color: 'var(--neo-text-muted)', marginBottom: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 800 }}>
-                      Foto Bukti (Presigned URL 15 Menit)
+                      Foto Bukti Lampiran ({detail.lampiran.length})
                     </h4>
-                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
                       {detail.lampiran.map((foto, idx) => (
-                        <a key={idx} href={foto.downloadUrl} target="_blank" rel="noreferrer" className="neo-btn-secondary" style={{ padding: '10px 16px', fontSize: '0.85rem' }}>
-                          <ImageIcon size={18} strokeWidth={2.5} color="#0d0e12" />
-                          <span>Lihat Foto Bukti {idx + 1}</span>
-                        </a>
+                        <div key={idx} className="neo-card" style={{ padding: '10px', background: '#faf8f5', textAlign: 'center', boxShadow: '3px 3px 0px 0px #a855f7' }}>
+                          <a href={foto.downloadUrl} target="_blank" rel="noreferrer" style={{ display: 'block', marginBottom: '8px' }}>
+                            <img
+                              src={foto.downloadUrl}
+                              alt={`Foto Bukti ${idx + 1}`}
+                              style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '6px', border: '2px solid #000000' }}
+                              loading="lazy"
+                            />
+                          </a>
+                          <a
+                            href={foto.downloadUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="neo-btn-secondary"
+                            style={{ padding: '6px 12px', fontSize: '0.8rem', width: '100%', justifyContent: 'center' }}
+                          >
+                            <ImageIcon size={14} strokeWidth={2.5} color="#0d0e12" />
+                            <span>Buka Foto {idx + 1} ({Math.round(foto.fileSizeBytes / 1024)} KB)</span>
+                          </a>
+                        </div>
                       ))}
                     </div>
                   </div>

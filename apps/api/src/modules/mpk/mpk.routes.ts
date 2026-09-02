@@ -10,13 +10,14 @@ import {
   StatusLaporan,
   StatusMatriks,
   KategoriLaporan,
+  RoleUser,
   hitungStatusMatriks,
   KATEGORI_LABELS,
   STATUS_MATRIKS_LABELS,
 } from '@si-aparat/shared';
 import { requireMPK, JwtPayload } from '../../middleware/auth';
-import { decryptText } from '../../lib/crypto';
-import { getPresignedDownloadUrl } from '../../lib/storage';
+import { decryptText, decryptBuffer } from '../../lib/crypto';
+import { downloadEncryptedFile } from '../../lib/storage';
 
 const prisma = new PrismaClient();
 
@@ -37,7 +38,60 @@ const balasanSchema = z.object({
 });
 
 export async function mpkRoutes(fastify: FastifyInstance) {
-  // Terapkan auth untuk semua route di modul ini
+  // ─── GET /api/v1/mpk/foto/:fotoId (Streaming Dekripsi Foto) ────────
+  // Mendukung query token ?token= agar dapat dibuka langsung via <a> / <img>
+  fastify.get(
+    '/foto/:fotoId',
+    async (
+      request: FastifyRequest<{ Params: { fotoId: string }; Querystring: { token?: string } }>,
+      reply: FastifyReply,
+    ) => {
+      const token =
+        request.headers.authorization?.replace(/^Bearer\s+/i, '') ||
+        (request.query as { token?: string })?.token;
+
+      if (!token) {
+        return reply.status(401).send({ error: 'Unauthorized', message: 'Token autentikasi diperlukan.' });
+      }
+
+      try {
+        const decoded = fastify.jwt.verify<JwtPayload>(token);
+        if (
+          decoded.role !== RoleUser.MPK &&
+          decoded.role !== RoleUser.SUPER_ADMIN &&
+          decoded.role !== RoleUser.PEMBINA
+        ) {
+          return reply.status(403).send({ error: 'Forbidden', message: 'Akses ditolak.' });
+        }
+      } catch {
+        return reply.status(401).send({ error: 'Unauthorized', message: 'Token tidak valid atau kedaluwarsa.' });
+      }
+
+      const foto = await prisma.lampiranFoto.findUnique({
+        where: { id: request.params.fotoId },
+      });
+
+      if (!foto) {
+        return reply.status(404).send({ error: 'Not Found', message: 'Foto bukti tidak ditemukan.' });
+      }
+
+      try {
+        const encryptedBuffer = await downloadEncryptedFile(foto.r2Key);
+        const decryptedBuffer = decryptBuffer(encryptedBuffer);
+
+        return reply
+          .header('Content-Type', foto.mimeType)
+          .header('Content-Disposition', `inline; filename="bukti-${foto.id}.${foto.mimeType.split('/')[1] || 'jpg'}"`)
+          .header('Cache-Control', 'private, max-age=3600')
+          .send(decryptedBuffer);
+      } catch (err: any) {
+        fastify.log.error(err, 'Failed to download or decrypt foto');
+        return reply.status(500).send({ error: 'Internal Server Error', message: 'Gagal memproses foto bukti.' });
+      }
+    },
+  );
+
+  // Terapkan auth untuk route lainnya di modul ini
   fastify.addHook('preHandler', requireMPK);
 
   // ─── GET /api/v1/mpk/laporan ──────────────────────────────────────
@@ -209,15 +263,13 @@ export async function mpkRoutes(fastify: FastifyInstance) {
         kontenDecrypted = '[Gagal mendekripsi konten laporan]';
       }
 
-      // Generate presigned URLs untuk foto (15 menit TTL)
-      const lampiranWithUrls = await Promise.all(
-        laporan.lampiran.map(async (foto) => ({
-          id: foto.id,
-          mimeType: foto.mimeType,
-          fileSizeBytes: foto.fileSizeBytes,
-          downloadUrl: await getPresignedDownloadUrl(foto.r2Key),
-        })),
-      );
+      // Generate route streaming URLs untuk foto terdekripsi
+      const lampiranWithUrls = laporan.lampiran.map((foto) => ({
+        id: foto.id,
+        mimeType: foto.mimeType,
+        fileSizeBytes: foto.fileSizeBytes,
+        downloadUrl: `/api/v1/mpk/foto/${foto.id}`,
+      }));
 
       return reply.send({
         ...laporan,
