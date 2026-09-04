@@ -1,14 +1,16 @@
 /**
  * Redis Cache Helper — SI-APARAT API
+ * Menggunakan Upstash Redis REST API (@upstash/redis)
  *
- * Menyediakan fungsi cache get/set/invalidate dengan graceful degradation:
- * - Jika REDIS_URL tidak dikonfigurasi, semua operasi menjadi no-op (request langsung ke DB)
- * - Semua error Redis ditangani secara silent agar tidak crash server
+ * Graceful degradation:
+ * - Jika UPSTASH_REDIS_REST_URL / TOKEN tidak dikonfigurasi, semua cache
+ *   menjadi no-op dan request langsung ke DB seperti biasa.
+ * - Semua error Redis ditangani secara silent agar tidak crash server.
  */
 
-import Redis from 'ioredis';
+import { Redis } from '@upstash/redis';
 
-// ─── Singleton Redis Client ───────────────────────────────────────────────────
+// ─── Singleton Upstash Client ─────────────────────────────────────────────────
 
 let _redis: Redis | null = null;
 let _initialized = false;
@@ -17,24 +19,16 @@ function getClient(): Redis | null {
   if (_initialized) return _redis;
   _initialized = true;
 
-  const url = process.env.REDIS_URL;
-  if (!url) {
-    // Cache dinonaktifkan — graceful degradation
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!url || !token) {
+    // Cache dinonaktifkan — graceful degradation (aman untuk local dev)
     return null;
   }
 
   try {
-    _redis = new Redis(url, {
-      maxRetriesPerRequest: 1,
-      enableReadyCheck: false,
-      lazyConnect: true,
-    });
-
-    _redis.on('error', (err) => {
-      // Hanya log, jangan crash — aplikasi tetap berjalan tanpa cache
-      console.warn('[Redis] Connection error (cache disabled):', err.message);
-    });
-
+    _redis = new Redis({ url, token });
     return _redis;
   } catch (err: any) {
     console.warn('[Redis] Failed to initialize (cache disabled):', err.message);
@@ -52,9 +46,8 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
   if (!client) return null;
 
   try {
-    const val = await client.get(key);
-    if (!val) return null;
-    return JSON.parse(val) as T;
+    // @upstash/redis otomatis parse JSON
+    return await client.get<T>(key);
   } catch {
     return null;
   }
@@ -69,7 +62,7 @@ export async function cacheSet(key: string, value: unknown, ttlSeconds: number):
   if (!client) return;
 
   try {
-    await client.set(key, JSON.stringify(value), 'EX', ttlSeconds);
+    await client.set(key, value, { ex: ttlSeconds });
   } catch {
     // Silent fail
   }
@@ -91,17 +84,24 @@ export async function cacheInvalidateKey(key: string): Promise<void> {
 
 /**
  * Hapus semua key yang cocok dengan pattern (misal `laporan:mpk:list:*`).
- * Gunakan dengan hemat — KEYS command blokir Redis sebentar.
- * Aman untuk dataset kecil seperti ini.
+ * Menggunakan SCAN untuk menghindari blocking Redis pada dataset besar.
  */
 export async function cacheInvalidatePattern(pattern: string): Promise<void> {
   const client = getClient();
   if (!client) return;
 
   try {
-    const keys = await client.keys(pattern);
-    if (keys.length > 0) {
-      await client.del(...keys);
+    let cursor = 0 as number | string;
+    const keysToDelete: string[] = [];
+
+    do {
+      const [nextCursor, keys] = await client.scan(cursor as number, { match: pattern, count: 100 });
+      cursor = nextCursor;
+      keysToDelete.push(...keys);
+    } while (Number(cursor) !== 0);
+
+    if (keysToDelete.length > 0) {
+      await client.del(...keysToDelete);
     }
   } catch {
     // Silent fail

@@ -29,9 +29,9 @@
     "@prisma/client": "^5.17.0",
     "@si-aparat/shared": "workspace:*",
     "@supabase/supabase-js": "^2.112.0",
+    "@upstash/redis": "^1.38.3",
     "bcryptjs": "^2.4.3",
     "fastify": "^4.29.1",
-    "ioredis": "^6.0.0",
     "resend": "^3.4.0",
     "sharp": "^0.33.5",
     "zod": "^3.23.8"
