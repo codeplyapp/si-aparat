@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Modal } from '../components/Modal';
 import {
   STATUS_LABELS,
   KATEGORI_LABELS,
@@ -198,119 +199,123 @@ export const DashboardPembina: React.FC = () => {
       )}
 
       {/* Modal Detail & Add Catatan */}
-      {selectedId && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}>
-          <div className="neo-card animate-neo-pop" style={{ maxWidth: '720px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '2.5rem', background: '#ffffff', boxShadow: '8px 8px 0px 0px #a855f7' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.75rem', borderBottom: '3px solid #000000', paddingBottom: '1.25rem', gap: '1rem' }}>
-              <div>
-                <span className="font-mono" style={{ fontSize: '1.4rem', fontWeight: 900, color: '#0d0e12' }}>
-                  {detail?.kodeTracking}
-                </span>
-                <p style={{ fontSize: '0.9rem', color: 'var(--neo-text-muted)', marginTop: '2px', fontWeight: 600 }}>
-                  Kategori: <strong style={{ color: '#0d0e12' }}>{detail ? KATEGORI_LABELS[detail.kategori] : ''}</strong>
-                </p>
+      <Modal
+        isOpen={Boolean(selectedId)}
+        onClose={() => setSelectedId(null)}
+        title={detail?.kodeTracking || 'Detail Kasus Laporan'}
+        subtitle={
+          detail ? (
+            <p style={{ fontSize: '0.9rem', color: 'var(--neo-text-muted)', marginTop: '2px', fontWeight: 600 }}>
+              Kategori: <strong style={{ color: 'var(--neo-text)' }}>{KATEGORI_LABELS[detail.kategori]}</strong>
+            </p>
+          ) : undefined
+        }
+        shadowColor="#a855f7"
+      >
+        {detailLoading ? (
+          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--neo-text-muted)', fontWeight: 700 }} className="font-display">
+            🔓 Mendekripsi konten...
+          </div>
+        ) : detail ? (
+          <div>
+            {/* Content Box */}
+            <div style={{ marginBottom: '1.75rem' }}>
+              <h4 className="font-display" style={{ fontSize: '0.95rem', color: 'var(--neo-text-muted)', marginBottom: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 800 }}>
+                Detail Kasus Laporan
+              </h4>
+              <div
+                className="neo-card-white"
+                style={{
+                  padding: '1.5rem',
+                  fontSize: '1rem',
+                  lineHeight: 1.6,
+                  whiteSpace: 'pre-wrap',
+                  fontWeight: 600,
+                  boxShadow: '5px 5px 0px 0px #a855f7',
+                  background: 'var(--neo-bg)',
+                }}
+              >
+                {detail.konten}
               </div>
-              <button onClick={() => setSelectedId(null)} className="neo-btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem' }}>Tutup</button>
             </div>
 
-            {detailLoading ? (
-              <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--neo-text-muted)', fontWeight: 700 }} className="font-display">Mendekripsi konten...</div>
-            ) : detail ? (
-              <div>
-                {/* Content Box */}
-                <div style={{ marginBottom: '1.75rem' }}>
-                  <h4 className="font-display" style={{ fontSize: '0.95rem', color: 'var(--neo-text-muted)', marginBottom: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 800 }}>Detail Kasus Laporan</h4>
-                  <div
-                    className="neo-card-white"
-                    style={{
-                      padding: '1.5rem',
-                      fontSize: '1rem',
-                      lineHeight: 1.6,
-                      whiteSpace: 'pre-wrap',
-                      fontWeight: 600,
-                      boxShadow: '5px 5px 0px 0px #a855f7',
-                      background: '#faf8f5',
-                    }}
-                  >
-                    {detail.konten}
-                  </div>
-                </div>
-
-                {/* Foto Lampiran Bukti */}
-                {detail.lampiran && detail.lampiran.length > 0 && (
-                  <div style={{ marginBottom: '1.75rem' }}>
-                    <h4 className="font-display" style={{ fontSize: '0.95rem', color: 'var(--neo-text-muted)', marginBottom: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 800 }}>
-                      Foto Bukti Lampiran ({detail.lampiran.length})
-                    </h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
-                      {detail.lampiran.map((foto, idx) => (
-                        <div key={idx} className="neo-card" style={{ padding: '10px', background: '#faf8f5', textAlign: 'center', boxShadow: '3px 3px 0px 0px #a855f7' }}>
-                          <a href={foto.downloadUrl} target="_blank" rel="noreferrer" style={{ display: 'block', marginBottom: '8px' }}>
-                            <img
-                              src={foto.downloadUrl}
-                              alt={`Foto Bukti ${idx + 1}`}
-                              style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '6px', border: '2px solid #000000' }}
-                              loading="lazy"
-                            />
-                          </a>
-                          <a
-                            href={foto.downloadUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="neo-btn-secondary"
-                            style={{ padding: '6px 12px', fontSize: '0.8rem', width: '100%', justifyContent: 'center' }}
-                          >
-                            <ImageIcon size={14} strokeWidth={2.5} color="#0d0e12" />
-                            <span>Buka Foto {idx + 1} ({Math.round(foto.fileSizeBytes / 1024)} KB)</span>
-                          </a>
-                        </div>
-                      ))}
+            {/* Foto Lampiran Bukti */}
+            {detail.lampiran && detail.lampiran.length > 0 && (
+              <div style={{ marginBottom: '1.75rem' }}>
+                <h4 className="font-display" style={{ fontSize: '0.95rem', color: 'var(--neo-text-muted)', marginBottom: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 800 }}>
+                  Foto Bukti Lampiran ({detail.lampiran.length})
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+                  {detail.lampiran.map((foto, idx) => (
+                    <div key={idx} className="neo-card" style={{ padding: '10px', background: 'var(--neo-bg)', textAlign: 'center', boxShadow: '3px 3px 0px 0px #a855f7' }}>
+                      <a href={foto.downloadUrl} target="_blank" rel="noreferrer" style={{ display: 'block', marginBottom: '8px' }}>
+                        <img
+                          src={foto.downloadUrl}
+                          alt={`Foto Bukti ${idx + 1}`}
+                          style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '6px', border: '2px solid #000000' }}
+                          loading="lazy"
+                        />
+                      </a>
+                      <a
+                        href={foto.downloadUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="neo-btn-secondary"
+                        style={{ padding: '6px 12px', fontSize: '0.8rem', width: '100%', justifyContent: 'center' }}
+                      >
+                        <ImageIcon size={14} strokeWidth={2.5} color="var(--neo-text)" />
+                        <span>Buka Foto {idx + 1} ({Math.round(foto.fileSizeBytes / 1024)} KB)</span>
+                      </a>
                     </div>
-                  </div>
-                )}
-
-                {/* History Catatan Tindak Lanjut */}
-                <div style={{ marginBottom: '2rem' }}>
-                  <h4 className="font-display" style={{ fontSize: '0.95rem', color: 'var(--neo-text-muted)', marginBottom: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 800 }}>Log Tindak Lanjut Pengasuh</h4>
-                  {detail.catatan.length === 0 ? (
-                    <p style={{ fontSize: '0.9rem', color: 'var(--neo-text-muted)', fontStyle: 'italic', fontWeight: 600 }}>Belum ada catatan tindak lanjut yang ditulis.</p>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {detail.catatan.map((c) => (
-                        <div key={c.id} className="neo-card" style={{ padding: '14px 18px', background: '#faf8f5', boxShadow: '3px 3px 0px 0px #000000' }}>
-                          <p style={{ color: '#0d0e12', marginBottom: '6px', fontWeight: 600, fontSize: '0.95rem' }}>{c.catatan}</p>
-                          <p className="font-mono" style={{ fontSize: '0.78rem', color: 'var(--neo-text-muted)' }}>
-                            Oleh: <strong style={{ color: '#0d0e12' }}>{c.author.namaLengkap}</strong> ({new Date(c.createdAt).toLocaleString('id-ID')})
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  ))}
                 </div>
-
-                {/* Add Catatan Form */}
-                <form onSubmit={handleAddCatatan} style={{ borderTop: '3px solid #000000', paddingTop: '1.75rem' }}>
-                  <h4 className="font-display" style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: '0.6rem', color: '#0d0e12' }}>
-                    Tambah Catatan Tindak Lanjut Lapangan
-                  </h4>
-                  <textarea
-                    rows={4}
-                    value={catatanText}
-                    onChange={(e) => setCatatanText(e.target.value)}
-                    placeholder="Contoh: Sudah diklarifikasi bersama Wali Kelas dan Pengasuh Asrama..."
-                    className="neo-input"
-                    style={{ marginBottom: '12px', minHeight: '100px' }}
-                  />
-                  <button type="submit" disabled={actionLoading} className="neo-btn-primary" style={{ padding: '12px 20px', fontSize: '0.9rem' }}>
-                    <MessageSquarePlus size={18} strokeWidth={2.5} />
-                    <span>{actionLoading ? 'Menyimpan...' : 'Simpan Catatan'}</span>
-                  </button>
-                </form>
               </div>
-            ) : null}
+            )}
+
+            {/* History Catatan Tindak Lanjut */}
+            <div style={{ marginBottom: '2rem' }}>
+              <h4 className="font-display" style={{ fontSize: '0.95rem', color: 'var(--neo-text-muted)', marginBottom: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 800 }}>
+                Log Tindak Lanjut Pengasuh
+              </h4>
+              {detail.catatan.length === 0 ? (
+                <p style={{ fontSize: '0.9rem', color: 'var(--neo-text-muted)', fontStyle: 'italic', fontWeight: 600 }}>
+                  Belum ada catatan tindak lanjut yang ditulis.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {detail.catatan.map((c) => (
+                    <div key={c.id} className="neo-card" style={{ padding: '14px 18px', background: 'var(--neo-bg)', boxShadow: '3px 3px 0px 0px #000000' }}>
+                      <p style={{ color: 'var(--neo-text)', marginBottom: '6px', fontWeight: 600, fontSize: '0.95rem' }}>{c.catatan}</p>
+                      <p className="font-mono" style={{ fontSize: '0.78rem', color: 'var(--neo-text-muted)' }}>
+                        Oleh: <strong style={{ color: 'var(--neo-text)' }}>{c.author.namaLengkap}</strong> ({new Date(c.createdAt).toLocaleString('id-ID')})
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Add Catatan Form */}
+            <form onSubmit={handleAddCatatan} style={{ borderTop: '3px solid #000000', paddingTop: '1.75rem' }}>
+              <h4 className="font-display" style={{ fontSize: '1.05rem', fontWeight: 800, marginBottom: '0.6rem', color: 'var(--neo-text)' }}>
+                Tambah Catatan Tindak Lanjut Lapangan
+              </h4>
+              <textarea
+                rows={4}
+                value={catatanText}
+                onChange={(e) => setCatatanText(e.target.value)}
+                placeholder="Contoh: Sudah diklarifikasi bersama Wali Kelas dan Pengasuh Asrama..."
+                className="neo-input"
+                style={{ marginBottom: '12px', minHeight: '100px' }}
+              />
+              <button type="submit" disabled={actionLoading} className="neo-btn-primary" style={{ padding: '12px 20px', fontSize: '0.9rem' }}>
+                <MessageSquarePlus size={18} strokeWidth={2.5} />
+                <span>{actionLoading ? 'Menyimpan...' : 'Simpan Catatan'}</span>
+              </button>
+            </form>
           </div>
-        </div>
-      )}
+        ) : null}
+      </Modal>
     </div>
   );
 };

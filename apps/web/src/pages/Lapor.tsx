@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Modal } from '../components/Modal';
 import {
   KategoriLaporan,
   KATEGORI_LABELS,
@@ -356,107 +357,89 @@ export const Lapor: React.FC = () => {
       </div>
 
       {/* Modal Sukses setelah Submit */}
-      {successKode && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(8px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-            padding: '1rem',
-          }}
-        >
+      <Modal
+        isOpen={Boolean(successKode)}
+        onClose={() => setSuccessKode(null)}
+        maxWidth="520px"
+        shadowColor="#ffe600"
+      >
+        <div style={{ textAlign: 'center' }}>
           <div
-            className="neo-card-yellow animate-neo-pop"
             style={{
-              maxWidth: '520px',
-              width: '100%',
-              padding: '2.5rem',
-              textAlign: 'center',
-              boxShadow: '8px 8px 0px 0px #000000',
+              background: '#000000',
+              color: '#ffe600',
+              border: '3px solid #000000',
+              boxShadow: '3px 3px 0px 0px var(--neo-yellow)',
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.25rem',
             }}
           >
-            <div
-              style={{
-                background: '#000000',
-                color: '#ffe600',
-                border: '3px solid #000000',
-                boxShadow: '3px 3px 0px 0px #ffffff',
-                width: '64px',
-                height: '64px',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 1.25rem',
-              }}
+            <CheckCircle size={38} strokeWidth={2.5} />
+          </div>
+
+          <h2 className="font-display" style={{ fontSize: '1.75rem', fontWeight: 900, marginBottom: '0.5rem', color: 'var(--neo-text)' }}>
+            Laporan Berhasil Terkirim! 🎉
+          </h2>
+          <p style={{ fontSize: '0.95rem', color: 'var(--neo-text-muted)', fontWeight: 600, marginBottom: '1.5rem' }}>
+            Isi laporan dienkripsi dengan AES-256. Simpan Kode Tracking ini untuk memantau status balasan MPK!
+          </p>
+
+          {/* Kode Tracking Display Box */}
+          <div
+            className="neo-card-white"
+            style={{
+              padding: '1.25rem',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              boxShadow: '4px 4px 0px 0px #000000',
+            }}
+          >
+            <span className="font-mono" style={{ fontSize: '1.4rem', fontWeight: 900, letterSpacing: '0.05em', color: 'var(--neo-text)' }}>
+              {successKode}
+            </span>
+            <button
+              type="button"
+              onClick={copyToClipboard}
+              className="neo-btn-primary"
+              style={{ padding: '8px 14px', fontSize: '0.85rem' }}
             >
-              <CheckCircle size={38} strokeWidth={2.5} />
-            </div>
+              {copied ? <Check size={18} strokeWidth={3} /> : <Copy size={18} strokeWidth={2.5} />}
+              <span>{copied ? 'Tersalin!' : 'Copy'}</span>
+            </button>
+          </div>
 
-            <h2 className="font-display" style={{ fontSize: '1.75rem', fontWeight: 900, marginBottom: '0.5rem', color: '#000000' }}>
-              Laporan Berhasil Terkirim! 🎉
-            </h2>
-            <p style={{ fontSize: '0.95rem', color: '#1a1a1a', fontWeight: 600, marginBottom: '1.5rem' }}>
-              Isi laporan dienkripsi dengan AES-256. Simpan Kode Tracking ini untuk memantau status balasan MPK!
-            </p>
-
-            {/* Kode Tracking Display Box */}
-            <div
-              className="neo-card-white"
-              style={{
-                padding: '1.25rem',
-                marginBottom: '1.5rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                boxShadow: '4px 4px 0px 0px #000000',
-              }}
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => navigate(`/tracking?kode=${successKode}`)}
+              className="neo-btn-mint"
+              style={{ flex: 1, justifyContent: 'center' }}
             >
-              <span className="font-mono" style={{ fontSize: '1.4rem', fontWeight: 900, letterSpacing: '0.05em', color: '#000000' }}>
-                {successKode}
-              </span>
-              <button
-                type="button"
-                onClick={copyToClipboard}
-                className="neo-btn-primary"
-                style={{ padding: '8px 14px', fontSize: '0.85rem' }}
-              >
-                {copied ? <Check size={18} strokeWidth={3} /> : <Copy size={18} strokeWidth={2.5} />}
-                <span>{copied ? 'Tersalin!' : 'Copy'}</span>
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => navigate(`/tracking?kode=${successKode}`)}
-                className="neo-btn-mint"
-                style={{ flex: 1, justifyContent: 'center' }}
-              >
-                Cek Status Sekarang
-              </button>
-              <button
-                onClick={() => {
-                  setSuccessKode(null);
-                  setKonten('');
-                  setFotos([]);
-                  setConfirmed(false);
-                  setHoneypot('');
-                  setFormMountedAt(Date.now());
-                }}
-                className="neo-btn-secondary"
-                style={{ flex: 1, justifyContent: 'center' }}
-              >
-                Kirim Lagi
-              </button>
-            </div>
+              Cek Status Sekarang
+            </button>
+            <button
+              onClick={() => {
+                setSuccessKode(null);
+                setKonten('');
+                setFotos([]);
+                setConfirmed(false);
+                setHoneypot('');
+                setFormMountedAt(Date.now());
+              }}
+              className="neo-btn-secondary"
+              style={{ flex: 1, justifyContent: 'center' }}
+            >
+              Kirim Lagi
+            </button>
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

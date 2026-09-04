@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Modal } from '../components/Modal';
 import {
   StatusLaporan,
   STATUS_LABELS,
@@ -99,6 +100,8 @@ export const DashboardMPK: React.FC = () => {
   useEffect(() => {
     fetchList();
   }, [fetchList]);
+
+
 
   const openDetail = async (id: string) => {
     setSelectedId(id);
@@ -439,29 +442,25 @@ export const DashboardMPK: React.FC = () => {
         </div>
       )}
 
-      {/* Modal Detail Laporan (Neo-Brutalist Dialog) */}
-      {selectedId && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '1rem' }}>
-          <div className="neo-card animate-neo-pop" style={{ maxWidth: '820px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '2.5rem', background: 'var(--neo-card-bg)', boxShadow: '8px 8px 0px 0px #ffe600' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.75rem', borderBottom: '3px solid #000000', paddingBottom: '1.25rem', gap: '1rem' }}>
-              <div>
-                <span className="font-mono" style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--neo-text)' }}>
-                  {detail?.kodeTracking}
-                </span>
-                <p style={{ fontSize: '0.9rem', color: 'var(--neo-text-muted)', marginTop: '2px', fontWeight: 600 }}>
-                  Kategori: <strong style={{ color: 'var(--neo-text)' }}>{detail ? KATEGORI_LABELS[detail.kategori] : ''}</strong>
-                </p>
-              </div>
-              <button onClick={() => setSelectedId(null)} className="neo-btn-secondary" style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
-                Tutup
-              </button>
-            </div>
-
-            {detailLoading ? (
-              <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--neo-text-muted)', fontWeight: 700 }} className="font-display">
-                🔓 Mendekripsi konten...
-              </div>
-            ) : detail ? (
+      {/* Modal Detail Laporan (Neo-Brutalist Modal) */}
+      <Modal
+        isOpen={Boolean(selectedId)}
+        onClose={() => setSelectedId(null)}
+        title={detail?.kodeTracking || 'Detail Laporan'}
+        subtitle={
+          detail ? (
+            <p style={{ fontSize: '0.9rem', color: 'var(--neo-text-muted)', marginTop: '2px', fontWeight: 600 }}>
+              Kategori: <strong style={{ color: 'var(--neo-text)' }}>{KATEGORI_LABELS[detail.kategori]}</strong>
+            </p>
+          ) : undefined
+        }
+        shadowColor="#ffe600"
+      >
+        {detailLoading ? (
+          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--neo-text-muted)', fontWeight: 700 }} className="font-display">
+            🔓 Mendekripsi konten...
+          </div>
+        ) : detail ? (
               <div>
                 {/* Status Bar & Action Buttons */}
                 <div className="neo-card" style={{ background: '#faf8f5', padding: '1.25rem', marginBottom: '1.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
@@ -738,9 +737,7 @@ export const DashboardMPK: React.FC = () => {
                 </form>
               </div>
             ) : null}
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 };
