@@ -5,6 +5,7 @@ import { RoleUser } from '@si-aparat/shared';
 import { requirePembina, JwtPayload } from '../../middleware/auth';
 import { decryptText, decryptBuffer } from '../../lib/crypto';
 import { downloadEncryptedFile } from '../../lib/storage';
+import { cacheGet, cacheSet, cacheInvalidateKey, cacheInvalidatePattern } from '../../lib/cache';
 
 const prisma = new PrismaClient();
 
@@ -67,9 +68,14 @@ export async function pembinaRoutes(fastify: FastifyInstance) {
 
   fastify.addHook('preHandler', requirePembina);
 
-  // ─── GET /api/v1/pembina/laporan ──────────────────────────────────
+  // ─── GET /api/v1/pembina/laporan ──────────────────────────────────────
   fastify.get('/laporan', async (_request: FastifyRequest, reply: FastifyReply) => {
     const { page = '1', limit = '100' } = _request.query as Record<string, string>;
+
+    const cacheKey = `laporan:pembina:list:${page}:${limit}`;
+    const cached = await cacheGet<object>(cacheKey);
+    if (cached) return reply.send(cached);
+
     const skip = (Number(page) - 1) * Number(limit);
 
     const [laporan, total] = await Promise.all([
@@ -91,18 +97,29 @@ export async function pembinaRoutes(fastify: FastifyInstance) {
       prisma.laporan.count({ where: { isEskalasi: true } }),
     ]);
 
-    return reply.send({
+    const responseBody = {
       data: laporan,
       pagination: { total, page: Number(page), limit: Number(limit) },
-    });
+    };
+
+    // Cache selama 60 detik
+    await cacheSet(cacheKey, responseBody, 60);
+
+    return reply.send(responseBody);
   });
 
-  // ─── GET /api/v1/pembina/laporan/:id ─────────────────────────────
+  // ─── GET /api/v1/pembina/laporan/:id ─────────────────────────────────
   fastify.get(
     '/laporan/:id',
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      const { id } = request.params;
+      const cacheKey = `laporan:pembina:detail:${id}`;
+
+      const cached = await cacheGet<object>(cacheKey);
+      if (cached) return reply.send(cached);
+
       const laporan = await prisma.laporan.findFirst({
-        where: { id: request.params.id, isEskalasi: true },
+        where: { id: id, isEskalasi: true },
         include: {
           catatan: {
             include: { author: { select: { namaLengkap: true, role: true } } },
@@ -137,7 +154,7 @@ export async function pembinaRoutes(fastify: FastifyInstance) {
         downloadUrl: `/api/v1/pembina/foto/${foto.id}`,
       }));
 
-      return reply.send({
+      const responseBody = {
         id: laporan.id,
         kodeTracking: laporan.kodeTracking,
         kategori: laporan.kategori,
@@ -149,7 +166,12 @@ export async function pembinaRoutes(fastify: FastifyInstance) {
         balasan: laporan.balasan,
         createdAt: laporan.createdAt.toISOString(),
         updatedAt: laporan.updatedAt.toISOString(),
-      });
+      };
+
+      // Cache detail laporan Pembina selama 5 menit
+      await cacheSet(cacheKey, responseBody, 300);
+
+      return reply.send(responseBody);
     },
   );
 
@@ -178,6 +200,12 @@ export async function pembinaRoutes(fastify: FastifyInstance) {
           catatan: parsed.data.catatan,
         },
       });
+
+      // Invalidasi cache detail agar catatan terbaru langsung terlihat
+      await Promise.all([
+        cacheInvalidateKey(`laporan:pembina:detail:${request.params.id}`),
+        cacheInvalidatePattern('laporan:pembina:list:*'),
+      ]);
 
       return reply.status(201).send({ message: 'Catatan tindak lanjut berhasil disimpan.', catatan });
     },

@@ -18,6 +18,7 @@ import {
 import { requireMPK, JwtPayload } from '../../middleware/auth';
 import { decryptText, decryptBuffer } from '../../lib/crypto';
 import { downloadEncryptedFile } from '../../lib/storage';
+import { cacheGet, cacheSet, cacheInvalidateKey, cacheInvalidatePattern } from '../../lib/cache';
 
 const prisma = new PrismaClient();
 
@@ -98,6 +99,11 @@ export async function mpkRoutes(fastify: FastifyInstance) {
   fastify.get('/laporan', async (_request: FastifyRequest, reply: FastifyReply) => {
     const { status, kategori, statusMatriks, page = '1', limit = '100' } = _request.query as Record<string, string>;
 
+    // ── Cache key unik per kombinasi filter ───────────────────────────
+    const cacheKey = `laporan:mpk:list:${status ?? ''}:${kategori ?? ''}:${statusMatriks ?? ''}:${page}:${limit}`;
+    const cached = await cacheGet<object>(cacheKey);
+    if (cached) return reply.send(cached);
+
     const where: Record<string, unknown> = {};
     if (status && status !== 'undefined') where.status = status;
     if (kategori && kategori !== 'undefined') where.kategori = kategori;
@@ -140,7 +146,7 @@ export async function mpkRoutes(fastify: FastifyInstance) {
       prisma.laporan.count({ where: { kategori: KategoriLaporan.PERUNDUNGAN } }),
     ]);
 
-    return reply.send({
+    const responseBody = {
       data: laporan,
       pagination: { total: totalFiltered, page: Number(page), limit: Number(limit) },
       stats: {
@@ -148,7 +154,12 @@ export async function mpkRoutes(fastify: FastifyInstance) {
         baru: baruAll,
         perundungan: perundunganAll,
       },
-    });
+    };
+
+    // Cache selama 60 detik
+    await cacheSet(cacheKey, responseBody, 60);
+
+    return reply.send(responseBody);
   });
 
   // ─── GET /api/v1/mpk/export/matriks.csv ───────────────────────────
@@ -242,8 +253,14 @@ export async function mpkRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/laporan/:id',
     async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      const { id } = request.params;
+      const cacheKey = `laporan:mpk:detail:${id}`;
+
+      const cached = await cacheGet<object>(cacheKey);
+      if (cached) return reply.send(cached);
+
       const laporan = await prisma.laporan.findUnique({
-        where: { id: request.params.id },
+        where: { id },
         include: {
           lampiran: true,
           balasan: true,
@@ -271,11 +288,16 @@ export async function mpkRoutes(fastify: FastifyInstance) {
         downloadUrl: `/api/v1/mpk/foto/${foto.id}`,
       }));
 
-      return reply.send({
+      const responseBody = {
         ...laporan,
         konten: kontenDecrypted,
         lampiran: lampiranWithUrls,
-      });
+      };
+
+      // Cache detail laporan selama 5 menit
+      await cacheSet(cacheKey, responseBody, 300);
+
+      return reply.send(responseBody);
     },
   );
 
@@ -293,6 +315,12 @@ export async function mpkRoutes(fastify: FastifyInstance) {
         data: { status: parsed.data.status },
         select: { id: true, kodeTracking: true, status: true },
       });
+
+      // Invalidasi cache laporan yang diubah
+      await Promise.all([
+        cacheInvalidateKey(`laporan:mpk:detail:${request.params.id}`),
+        cacheInvalidatePattern('laporan:mpk:list:*'),
+      ]);
 
       return reply.send({ message: 'Status laporan berhasil diperbarui.', laporan });
     },
@@ -363,6 +391,12 @@ export async function mpkRoutes(fastify: FastifyInstance) {
         },
       });
 
+      // Invalidasi cache laporan yang diubah
+      await Promise.all([
+        cacheInvalidateKey(`laporan:mpk:detail:${request.params.id}`),
+        cacheInvalidatePattern('laporan:mpk:list:*'),
+      ]);
+
       return reply.send({
         message: 'Penilaian matriks berhasil disimpan.',
         laporan: updated,
@@ -382,6 +416,13 @@ export async function mpkRoutes(fastify: FastifyInstance) {
         },
         select: { id: true, kodeTracking: true, status: true, isEskalasi: true },
       });
+
+      // Invalidasi cache — laporan ini sekarang muncul di dashboard Pembina juga
+      await Promise.all([
+        cacheInvalidateKey(`laporan:mpk:detail:${request.params.id}`),
+        cacheInvalidatePattern('laporan:mpk:list:*'),
+        cacheInvalidatePattern('laporan:pembina:list:*'),
+      ]);
 
       return reply.send({ message: 'Laporan berhasil diteruskan ke Pembina.', laporan });
     },
@@ -410,6 +451,9 @@ export async function mpkRoutes(fastify: FastifyInstance) {
           authorId: payload.sub,
         },
       });
+
+      // Invalidasi cache detail agar balasan terbaru langsung terlihat
+      await cacheInvalidateKey(`laporan:mpk:detail:${request.params.id}`);
 
       return reply.status(201).send({ message: 'Balasan berhasil dikirim.', balasan });
     },
